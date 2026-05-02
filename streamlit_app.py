@@ -592,6 +592,17 @@ def _inject_gs_messaging_css() -> None:
             border-radius: 12px;
             box-shadow: 0 1px 8px rgba(26, 26, 26, 0.05);
         }
+        .goal-composer [data-testid="stButton"] > button {
+            background: #1e3a5f !important;
+            color: #ffffff !important;
+            border: 1px solid #1e3a5f !important;
+            font-weight: 700 !important;
+        }
+        .goal-composer [data-testid="stButton"] > button:hover {
+            background: #15304f !important;
+            color: #ffffff !important;
+            border-color: #15304f !important;
+        }
         .goal-coach-badge {
             display: inline-flex;
             align-items: center;

@@ -112,7 +112,7 @@ Rules:
   1) **Stocks now (examples):** 3–5 examples using real, well-known listed companies (large and liquid),
   2) **Mutual funds now (examples):** 3–5 examples using real, widely available mutual funds / index funds.
 - Keep suggestions practical ("what kind of assets now"), not guaranteed picks.
-- Prefer India-oriented examples when user context is INR / India, but keep names generic enough for education.
+- Use **US market examples by default** (US-listed companies and US mutual funds/ETFs), unless the user explicitly asks for another country.
 - Add one short caution line: "Examples only; verify current market price, expense ratio, and suitability before investing."
 - Be warm and practical."""
 
@@ -212,22 +212,22 @@ def _fallback_goal_bullets(profile: dict[str, Any]) -> str:
     y = y_raw
     r = profile.get("riskLabel", "balanced")
     if y_num <= 5 or "cautious" in str(r).lower():
-        stock_examples = "HDFC Bank, TCS, Infosys, Hindustan Unilever"
+        stock_examples = "Microsoft, Johnson & Johnson, Procter & Gamble, Coca-Cola"
         mf_examples = (
-            "SBI Nifty 50 Index Fund, UTI Nifty 50 Index Fund, "
-            "ICICI Prudential Equity & Debt Fund, HDFC Short Term Debt Fund"
+            "Vanguard Total Bond Market Index Fund (VBTLX), Vanguard Wellesley Income Fund (VWINX), "
+            "Fidelity 500 Index Fund (FXAIX), Vanguard Short-Term Treasury Fund (VFISX)"
         )
     elif y_num <= 12:
-        stock_examples = "Reliance Industries, TCS, HDFC Bank, Infosys, Larsen & Toubro"
+        stock_examples = "Apple, Microsoft, Johnson & Johnson, JPMorgan Chase, Costco"
         mf_examples = (
-            "Parag Parikh Flexi Cap Fund, UTI Nifty 50 Index Fund, "
-            "ICICI Prudential Bluechip Fund, HDFC Balanced Advantage Fund"
+            "Vanguard 500 Index Fund (VFIAX), Fidelity Total Market Index Fund (FSKAX), "
+            "Vanguard Balanced Index Fund (VBIAX), American Funds Fundamental Investors (ANCFX)"
         )
     else:
-        stock_examples = "Reliance Industries, Infosys, Tata Consultancy Services, HDFC Bank, Asian Paints"
+        stock_examples = "Apple, Microsoft, Alphabet, Visa, UnitedHealth Group"
         mf_examples = (
-            "Parag Parikh Flexi Cap Fund, SBI Nifty Index Fund, "
-            "Motilal Oswal Nasdaq 100 FoF, Kotak Emerging Equity Fund"
+            "Vanguard Total Stock Market Index Fund (VTSAX), Fidelity 500 Index Fund (FXAIX), "
+            "Vanguard Growth Index Fund (VIGAX), Vanguard Total International Stock Index Fund (VTIAX)"
         )
     return (
         f"- Your answers point to a **{r}** comfort style with about **{y} years** in view.\n"

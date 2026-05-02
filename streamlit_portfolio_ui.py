@@ -124,12 +124,22 @@ def render_health_score_card(health: dict) -> None:
     <div style="display:flex;justify-content:center;align-items:center;width:100%;padding-top:4px;">
       <div style="width:min(680px,99%);text-align:center;">
         <svg viewBox="0 0 420 280" width="100%" height="280" aria-hidden="true">
-          <!-- exact top semicircle: center (210,200), radius 150 -->
-          <path d="M 60 200 A 150 150 0 0 1 150 70" fill="none" stroke="#e35d5b" stroke-width="24" stroke-linecap="butt"/>
-          <path d="M 150 70 A 150 150 0 0 1 195 54" fill="none" stroke="#dfa443" stroke-width="24" stroke-linecap="butt"/>
-          <path d="M 195 54 A 150 150 0 0 1 225 54" fill="none" stroke="#efd45a" stroke-width="24" stroke-linecap="butt"/>
-          <path d="M 225 54 A 150 150 0 0 1 270 70" fill="none" stroke="#a8efba" stroke-width="24" stroke-linecap="butt"/>
-          <path d="M 270 70 A 150 150 0 0 1 360 200" fill="none" stroke="#6bcf70" stroke-width="24" stroke-linecap="butt"/>
+          <defs>
+            <linearGradient id="healthGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#e35d5b" />
+              <stop offset="34%" stop-color="#dfa443" />
+              <stop offset="50%" stop-color="#efd45a" />
+              <stop offset="70%" stop-color="#a8efba" />
+              <stop offset="100%" stop-color="#6bcf70" />
+            </linearGradient>
+          </defs>
+
+          <!-- perfect top semicircle -->
+          <path d="M 60 200 A 150 150 0 0 1 360 200"
+                fill="none"
+                stroke="url(#healthGaugeGrad)"
+                stroke-width="24"
+                stroke-linecap="round" />
 
           <!-- inner dotted guide -->
           <path d="M 72 200 A 138 138 0 0 1 348 200"
