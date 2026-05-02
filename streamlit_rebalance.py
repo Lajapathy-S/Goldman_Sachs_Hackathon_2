@@ -9,6 +9,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from streamlit_claude_client import resolved_model_name
+
 
 class RecommendedAllocation(BaseModel):
     stocks: float
@@ -343,7 +345,7 @@ def run_rebalance(
     import anthropic
 
     client = anthropic.Anthropic(api_key=api_key)
-    mdl = model or os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+    mdl = model or resolved_model_name()
     msg = client.messages.create(
         model=mdl,
         max_tokens=4096,

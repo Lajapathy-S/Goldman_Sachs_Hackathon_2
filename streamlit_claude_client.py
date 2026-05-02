@@ -5,9 +5,16 @@ from __future__ import annotations
 import os
 from typing import Any
 
+# Default if ANTHROPIC_MODEL is unset. Older IDs (e.g. claude-3-5-sonnet-20241022) are retired and will 404.
+DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6"
+
+
+def resolved_model_name() -> str:
+    return os.environ.get("ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL).strip() or DEFAULT_ANTHROPIC_MODEL
+
 
 def _model() -> str:
-    return os.environ.get("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
+    return resolved_model_name()
 
 
 def claude_complete(api_key: str, system: str, user_text: str, max_tokens: int = 1200) -> str:
@@ -57,6 +64,8 @@ Scope (strict):
 - You ONLY discuss personal finance and investing topics: money, saving, budgeting, debt, taxes at a high level,
   portfolios, mutual funds, stocks (general), retirement accounts, inflation, markets, risk, withdrawals, goals, fees,
   diversification, and related "what if" scenarios. Nothing else.
+- Saving for a **vacation**, **travel**, **education**, a **home**, an **emergency fund**, or other **short- or long-term
+  money goals** is in scope—answer with practical bullets (timing, liquidity, diversification, trade-offs).
 - If the user asks about anything outside that scope (coding, homework, sports, recipes, health, politics, gossip,
   creative writing, general chit-chat, or other non-finance topics), you MUST NOT answer their request. Respond with
   exactly these two bullets and nothing else:
@@ -83,28 +92,36 @@ Rules:
 - Be warm and practical."""
 
 
-def whatif_reply(api_key: str | None, user_text: str, history: list[tuple[str, str]]) -> tuple[str, str]:
-    """Returns (reply_text, source) where source is 'claude' or 'fallback'."""
+def whatif_reply(
+    api_key: str | None, user_text: str, history: list[tuple[str, str]]
+) -> tuple[str, str, str | None]:
+    """Returns (reply_text, source, api_error). source is 'claude' or 'fallback'; api_error set if Claude failed."""
     if not api_key:
-        return _fallback_whatif_bullets(user_text), "fallback"
+        return _fallback_whatif_bullets(user_text), "fallback", None
     try:
         text = claude_chat_with_history(api_key, WHATIF_SYSTEM, history, user_text)
-        return text.strip() or _fallback_whatif_bullets(user_text), "claude"
-    except Exception:
-        return _fallback_whatif_bullets(user_text), "fallback"
+        if not text.strip():
+            return _fallback_whatif_bullets(user_text), "fallback", "Empty response from Claude."
+        return text.strip(), "claude", None
+    except Exception as e:
+        err = f"{type(e).__name__}: {e}"
+        return _fallback_whatif_bullets(user_text), "fallback", err[:800]
 
 
-def goal_coach_reply(api_key: str | None, profile: dict[str, Any]) -> tuple[str, str]:
+def goal_coach_reply(api_key: str | None, profile: dict[str, Any]) -> tuple[str, str, str | None]:
     if not api_key:
-        return _fallback_goal_bullets(profile), "fallback"
+        return _fallback_goal_bullets(profile), "fallback", None
     try:
         import json
 
         user = f"Goal profile (JSON):\n{json.dumps(profile, indent=2)}\n\nWrite the bullet summary for this person."
         text = claude_complete(api_key, GOAL_COACH_SYSTEM, user, max_tokens=900)
-        return text.strip() or _fallback_goal_bullets(profile), "claude"
-    except Exception:
-        return _fallback_goal_bullets(profile), "fallback"
+        if not text.strip():
+            return _fallback_goal_bullets(profile), "fallback", "Empty response from Claude."
+        return text.strip(), "claude", None
+    except Exception as e:
+        err = f"{type(e).__name__}: {e}"
+        return _fallback_goal_bullets(profile), "fallback", err[:800]
 
 
 def _fallback_whatif_bullets(user_text: str) -> str:

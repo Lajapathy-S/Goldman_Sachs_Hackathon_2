@@ -8,7 +8,7 @@ Secrets (Streamlit Cloud → App settings → Secrets):
   ANTHROPIC_API_KEY = "sk-ant-..."
 
 Optional:
-  ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
+  ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
 Without a key, AI Rebalance uses the built-in simulation only.
 """
@@ -23,7 +23,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from streamlit_claude_client import goal_coach_reply, whatif_reply
+from streamlit_claude_client import goal_coach_reply, resolved_model_name, whatif_reply
 from streamlit_rebalance import SCENARIO_PROMPTS, run_rebalance, sum_by_type
 
 st.set_page_config(
@@ -56,7 +56,8 @@ FINANCIAL_RE = re.compile(
     r"correction|expense|capital\s*gain|savings|debt|pension|nominee|lumpsum|index|sector|"
     r"gold|commod|rupee|inr|budget|mortgage|401k|\bira\b|roth|forex|crypto|bitcoin|insurance|"
     r"financial|broker|trade|trading|fee|401\b|emergency\s*fund|refinance|loan|credit\s*score|"
-    r"income|salary|net\s*worth)\b",
+    r"income|salary|net\s*worth|\bsave\b|saving|vacation|travel|trip|holiday|wedding|tuition|"
+    r"529|college|university|rainy\s*day|nest\s*egg|piggybank|allowance)\b",
     re.I,
 )
 OFF_TOPIC_RE = re.compile(
@@ -739,8 +740,12 @@ def _goal_followup_reply(user_text: str) -> None:
         return
     key = get_api_key()
     sync_anthropic_env_from_secrets()
-    reply, _src = whatif_reply(key, user_text, prior)
+    reply, _src, _err = whatif_reply(key, user_text, prior)
     st.session_state.goal_chat_messages.append(("assistant", reply))
+    if _err:
+        st.session_state["_goal_followup_api_error"] = _err
+    else:
+        st.session_state.pop("_goal_followup_api_error", None)
 
 
 def _append_whatif_response(user_text: str, prior_history: list[tuple[str, str]]) -> None:
@@ -753,17 +758,23 @@ def _append_whatif_response(user_text: str, prior_history: list[tuple[str, str]]
     ):
         st.session_state.agent_messages.append(("assistant", _guardrail_bullets()))
         st.session_state["_last_whatif_source"] = "guardrail"
+        st.session_state.pop("_last_whatif_api_error", None)
         return
     if re.match(r"^(hi|hello|hey)\b", user_text, re.I) and len(user_text) < 40:
         st.session_state.agent_messages.append(("assistant", _greeting_bullets()))
         st.session_state["_last_whatif_source"] = "greeting"
+        st.session_state.pop("_last_whatif_api_error", None)
         return
 
     key = get_api_key()
     sync_anthropic_env_from_secrets()
-    reply, src = whatif_reply(key, user_text, prior_history)
+    reply, src, api_err = whatif_reply(key, user_text, prior_history)
     st.session_state.agent_messages.append(("assistant", reply))
     st.session_state["_last_whatif_source"] = src
+    if src == "claude":
+        st.session_state.pop("_last_whatif_api_error", None)
+    else:
+        st.session_state["_last_whatif_api_error"] = api_err
 
 
 def _goal_chat_pop_last_turn() -> None:
@@ -895,9 +906,13 @@ def render_guided_goal_setting() -> None:
             sync_anthropic_env_from_secrets()
             key = get_api_key()
             with st.spinner("Generating your summary…"):
-                summary, src = goal_coach_reply(key, profile)
+                summary, src, g_err = goal_coach_reply(key, profile)
             st.session_state.goal_claude_summary = summary
             st.session_state.goal_claude_source = src
+            if g_err:
+                st.session_state["_goal_coach_api_error"] = g_err
+            else:
+                st.session_state.pop("_goal_coach_api_error", None)
             st.session_state.goal_chat_messages.append(("user", user_recap))
             st.session_state.goal_chat_messages.append(
                 (
@@ -910,10 +925,20 @@ def render_guided_goal_setting() -> None:
 
     else:
         st.success("Profile saved — scroll up to see the full chat.")
+        if st.session_state.get("_goal_coach_api_error"):
+            st.warning(
+                "Claude couldn’t generate the summary — showing the built-in template. "
+                + str(st.session_state["_goal_coach_api_error"])
+            )
         with st.expander("View saved profile (JSON)"):
             st.json(json.loads(st.session_state.goal_saved))
         src = st.session_state.get("goal_claude_source") or "fallback"
         st.caption(f"Summary source: **{'Claude API' if src == 'claude' else 'Built-in template'}**")
+        if st.session_state.get("_goal_followup_api_error"):
+            st.warning(
+                "Follow-up Claude call failed — last reply is the built-in template. "
+                + str(st.session_state["_goal_followup_api_error"])
+            )
         with st.form("goal_followup_form", clear_on_submit=True):
             fu = st.text_input(
                 "Optional follow-up (finance topics only)",
@@ -949,6 +974,14 @@ def page_agent() -> None:
 
     with tab_chat:
         st.subheader("RB buddy")
+        sync_anthropic_env_from_secrets()
+        _ak = get_api_key()
+        if _ak:
+            st.caption(f"Claude API key is set · model **`{resolved_model_name()}`**")
+        else:
+            st.caption(
+                "No **`ANTHROPIC_API_KEY`** in Streamlit secrets — RB buddy uses built-in templates only."
+            )
         st.write(
             "Chat about **money and investing** only. Replies are **bullet points**. "
             "Off-topic questions get a short reminder — RB buddy won’t answer non-finance topics."
@@ -979,7 +1012,14 @@ def page_agent() -> None:
         src = st.session_state.get("_last_whatif_source")
         if src in ("claude", "fallback"):
             st.caption(
-                f"Last AI reply: **{'Claude API' if src == 'claude' else 'Built-in template (add API key for Claude)'}**"
+                f"Last reply source: **{'Claude API' if src == 'claude' else 'Built-in template'}**"
+            )
+        _api_err = st.session_state.get("_last_whatif_api_error")
+        if _ak and src == "fallback" and _api_err:
+            st.warning(
+                "The last question used the **built-in template** because the Claude request failed:\n\n"
+                f"`{_api_err}`\n\n"
+                "Check your API key, billing, and that **`ANTHROPIC_MODEL`** (if set) is a current model ID."
             )
 
         if prompt := st.chat_input("Ask RB buddy a finance question…"):
@@ -995,6 +1035,7 @@ def page_agent() -> None:
         if st.button("Clear chat history"):
             st.session_state.agent_messages = []
             st.session_state.pop("_last_whatif_source", None)
+            st.session_state.pop("_last_whatif_api_error", None)
             st.rerun()
 
     with tab_goals:
