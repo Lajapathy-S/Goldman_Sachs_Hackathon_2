@@ -226,11 +226,11 @@ def _inject_login_page_css() -> None:
     )
 
 
-def _login_hero_before_cta_html() -> str:
-    """Hero shell + headline + body (CTA is a Streamlit button so it can open login)."""
+def _login_hero_white_html() -> str:
+    """Light hero — white background, navy typography (landing before member sign-in)."""
     return """
 <div style="position:relative;margin:0;font-family:'Source Sans 3',system-ui,sans-serif;
-  background:#ffffff;padding:48px 6vw 12px 6vw;min-height:42vh;border-bottom:1px solid #e2e8f0;">
+  background:#ffffff;padding:48px 6vw 56px 6vw;min-height:42vh;border-bottom:1px solid #e2e8f0;">
   <div style="position:relative;z-index:2;max-width:min(640px,92vw);">
     <h1 style="
       font-family:'Libre Baskerville',Georgia,serif;
@@ -243,18 +243,20 @@ def _login_hero_before_cta_html() -> str:
     <p style="
       font-family:'Source Sans 3',system-ui,sans-serif;
       font-size:1.05rem;line-height:1.65;color:#475569;
-      margin:0 0 20px 0;max-width:540px;
+      margin:0 0 28px 0;max-width:540px;
     ">
       Educational tools for stocks and mutual funds — AI chat with guardrails, goal coaching, and rebalance simulations.
       Not investment advice.
     </p>
+    <div style="
+      display:inline-block;padding:12px 26px;
+      background:#0f172a;color:#ffffff;
+      font-size:0.9rem;font-weight:700;
+      letter-spacing:0.04em;border-radius:2px;
+    ">
+      EXPLORE WORKSPACE
+    </div>
   </div>
-"""
-
-
-def _login_hero_after_cta_html() -> str:
-    """Watermark + close outer hero wrapper (headline block closed in before_cta)."""
-    return """
   <div aria-hidden="true" style="
     position:absolute;right:4vw;top:42%;transform:translateY(-50%);
     font-family:'Libre Baskerville',Georgia,serif;
@@ -266,11 +268,6 @@ def _login_hero_after_cta_html() -> str:
 """
 
 
-def _landing_open_login() -> None:
-    st.session_state.show_member_login = True
-    st.rerun()
-
-
 def login_screen() -> None:
     """Landing (white) first; member login form only after 'Member sign-in'."""
     _inject_login_page_css()
@@ -279,56 +276,39 @@ def login_screen() -> None:
         '<div style="background:#a2b9d6;padding:28px 7vw 30px 7vw;border-bottom:1px solid rgba(26,26,26,0.1);">',
         unsafe_allow_html=True,
     )
-    c_brand, c_nav, c_btn = st.columns([1.55, 4.0, 1.25], gap="small")
+    c_brand, c_nav, c_demo, c_btn = st.columns([1.5, 3.4, 0.65, 1.25], gap="small")
     with c_brand:
         st.markdown(
             '<p style="font-family:Georgia,serif;font-size:1.35rem;font-weight:700;color:#0f172a;margin:0;padding-top:4px;">AIChemist</p>',
             unsafe_allow_html=True,
         )
     with c_nav:
-        pn1, pn2, _ = st.columns([1.05, 1.05, 4.5], gap="small")
-        if hasattr(st, "popover"):
-            with pn1:
-                with st.popover("portfolio ▾"):
-                    st.caption(
-                        "Demo equity vs fund slices — available after you sign in.",
-                    )
-                    st.markdown("**Stocks** — Positions, performance, and mix.")
-                    if st.button("Stocks — go to sign-in", key="land_pf_stocks", use_container_width=True):
-                        _landing_open_login()
-                    st.markdown("**Mutual funds** — Holdings and diversification.")
-                    if st.button("Mutual funds — go to sign-in", key="land_pf_mf", use_container_width=True):
-                        _landing_open_login()
-            with pn2:
-                with st.popover("agents ▾"):
-                    st.caption("REBA + Goal coach — available after you sign in.")
-                    st.markdown(
-                        "**Guided goal setting** — Short flow for goals, timeline, and risk comfort."
-                    )
-                    if st.button("Goal coach — go to sign-in", key="land_ag_goal", use_container_width=True):
-                        _landing_open_login()
-                    st.markdown("**REBA** — Finance-only what-if chat.")
-                    if st.button("REBA — go to sign-in", key="land_ag_rb", use_container_width=True):
-                        _landing_open_login()
-        else:
-            with pn1:
-                with st.expander("portfolio ▾", expanded=False):
-                    st.markdown("**Stocks** — Positions, performance, and mix.")
-                    if st.button("Stocks — go to sign-in", key="land_pf_stocks_e", use_container_width=True):
-                        _landing_open_login()
-                    st.markdown("**Mutual funds** — Holdings and diversification.")
-                    if st.button("Mutual funds — go to sign-in", key="land_pf_mf_e", use_container_width=True):
-                        _landing_open_login()
-            with pn2:
-                with st.expander("agents ▾", expanded=False):
-                    st.markdown(
-                        "**Guided goal setting** — Short flow for goals, timeline, and risk comfort."
-                    )
-                    if st.button("Goal coach — go to sign-in", key="land_ag_goal_e", use_container_width=True):
-                        _landing_open_login()
-                    st.markdown("**REBA** — Finance-only what-if chat.")
-                    if st.button("REBA — go to sign-in", key="land_ag_rb_e", use_container_width=True):
-                        _landing_open_login()
+        st.markdown(
+            """
+            <div class="gs-login-nav" style="padding-top:4px;font-size:0.88rem;font-family:'Source Sans 3',system-ui,sans-serif;">
+            <details name="aichemist-landing-nav">
+              <summary>portfolio ▾</summary>
+              <div class="gs-dd-body">
+                <strong>Stocks</strong> — Demo equity positions, performance, and how they move the mix.<br/><br/>
+                <strong>Mutual funds</strong> — Demo fund holdings and diversification in the sample portfolio.
+              </div>
+            </details>
+            <details name="aichemist-landing-nav">
+              <summary>agents ▾</summary>
+              <div class="gs-dd-body">
+                <strong>Guided goal setting</strong> — A short, chat-style flow that captures your goal, timeline,
+                and comfort with risk, then summarizes trade-offs in plain language (educational only).
+              </div>
+            </details>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c_demo:
+        st.markdown(
+            '<p style="margin:0;padding-top:10px;font-size:0.82rem;color:#334155;">Demo</p>',
+            unsafe_allow_html=True,
+        )
     with c_btn:
         st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
         if st.button("Member sign-in", key="login_open_member_panel", use_container_width=True):
@@ -337,16 +317,8 @@ def login_screen() -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
     if not st.session_state.show_member_login:
-        st.markdown(_login_hero_before_cta_html(), unsafe_allow_html=True)
-        _, hero_cta_col, _ = st.columns([0.5, 3.2, 1.0])
-        with hero_cta_col:
-            if st.button("EXPLORE WORKSPACE", type="primary", key="hero_explore_ws"):
-                _landing_open_login()
-        st.markdown(_login_hero_after_cta_html(), unsafe_allow_html=True)
-        st.caption(
-            "Use **EXPLORE WORKSPACE**, **Member sign-in**, or any option under **portfolio** / **agents** to sign in. "
-            "Educational only — not financial advice."
-        )
+        st.markdown(_login_hero_white_html(), unsafe_allow_html=True)
+        st.caption("Click **Member sign-in** above to open the demo login. Educational only — not financial advice.")
         return
 
     st.markdown('<div class="gs-login-strip">', unsafe_allow_html=True)
