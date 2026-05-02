@@ -23,9 +23,9 @@ ALLOC_COLORS = ["#1e3a5f", "#0f766e", "#457b9d", "#a8dadc", "#e9c46a", "#bc6c25"
 
 
 def render_performance_chart(perf_df: pd.DataFrame) -> None:
-    """Area chart via Streamlit (no Plotly iframe). Theme primaryColor matches portfolio navy."""
+    """Line chart via Streamlit (no Plotly iframe). Theme primaryColor matches portfolio navy."""
     work = perf_df[["Month", "Value"]].copy()
-    st.area_chart(
+    st.line_chart(
         work,
         x="Month",
         y="Value",
@@ -108,7 +108,6 @@ def inject_portfolio_dashboard_css() -> None:
         [data-testid="stArrowVegaLiteChart"] {{
             min-height: 320px !important;
         }}
-        div[data-testid="stAreaChart"],
         div[data-testid="stBarChart"],
         div[data-testid="stLineChart"] {{
             min-height: 320px;
