@@ -1,11 +1,10 @@
 """
-Hardcoded U.S. demo portfolio metrics for the Streamlit Portfolio page.
-Aligned with DEMO_US_PORTFOLIO + tax_calculator.holding_metrics.
+Portfolio metrics with live Yahoo Finance data and static fallback.
 """
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 import numpy as np
@@ -13,23 +12,137 @@ import pandas as pd
 
 from utils.tax_calculator import DEMO_US_PORTFOLIO, holding_metrics
 
-AS_OF = date(2026, 5, 2)
+try:
+    import yfinance as yf
+except Exception:
+    yf = None
 
-# Demo 1-day move (illustrative, not live market data)
-ONE_DAY_PCT = -0.009
+AS_OF = date.today()
+
+LIVE_US_PORTFOLIO: list[dict[str, Any]] = [
+    {"name": "Apple Inc.", "symbol": "AAPL", "asset_type": "Stock", "buy_date": "2021-03-12", "buy_price": 124.0, "quantity": 24},
+    {"name": "Microsoft Corp.", "symbol": "MSFT", "asset_type": "Stock", "buy_date": "2021-08-09", "buy_price": 289.0, "quantity": 14},
+    {"name": "NVIDIA Corp.", "symbol": "NVDA", "asset_type": "Stock", "buy_date": "2022-10-17", "buy_price": 122.0, "quantity": 32},
+    {"name": "JPMorgan Chase", "symbol": "JPM", "asset_type": "Stock", "buy_date": "2020-11-20", "buy_price": 108.0, "quantity": 19},
+    {"name": "Exxon Mobil", "symbol": "XOM", "asset_type": "Stock", "buy_date": "2020-06-04", "buy_price": 52.0, "quantity": 30},
+    {"name": "Vanguard S&P 500 ETF", "symbol": "VOO", "asset_type": "Mutual Fund", "buy_date": "2020-09-10", "buy_price": 305.0, "quantity": 14},
+    {"name": "Vanguard Total Stock Market ETF", "symbol": "VTI", "asset_type": "Mutual Fund", "buy_date": "2021-01-22", "buy_price": 199.0, "quantity": 17},
+    {"name": "Vanguard Total International Stock ETF", "symbol": "VXUS", "asset_type": "Mutual Fund", "buy_date": "2021-04-16", "buy_price": 64.0, "quantity": 42},
+    {"name": "Vanguard Total Bond Market ETF", "symbol": "BND", "asset_type": "Mutual Fund", "buy_date": "2022-02-14", "buy_price": 79.0, "quantity": 40},
+    {"name": "iShares Core U.S. Aggregate Bond ETF", "symbol": "AGG", "asset_type": "Mutual Fund", "buy_date": "2022-07-25", "buy_price": 104.0, "quantity": 29},
+]
+
+_CACHE: dict[str, Any] = {"quotes": None, "quotes_ts": None, "history": None, "history_ts": None}
 
 
-def _rows() -> list[dict[str, Any]]:
-    return [holding_metrics(h, AS_OF) for h in DEMO_US_PORTFOLIO]
+def _cache_is_fresh(ts: datetime | None, ttl_sec: int) -> bool:
+    if ts is None:
+        return False
+    return (datetime.now(timezone.utc) - ts).total_seconds() < ttl_sec
+
+
+def _symbols() -> list[str]:
+    return [h["symbol"] for h in LIVE_US_PORTFOLIO]
+
+
+def _download_quotes() -> dict[str, dict[str, float]]:
+    if yf is None:
+        raise RuntimeError("yfinance unavailable")
+    if _cache_is_fresh(_CACHE.get("quotes_ts"), 300) and isinstance(_CACHE.get("quotes"), dict):
+        return _CACHE["quotes"]
+
+    symbols = _symbols()
+    hist = yf.download(
+        symbols,
+        period="15d",
+        interval="1d",
+        auto_adjust=True,
+        progress=False,
+        group_by="ticker",
+        threads=True,
+    )
+    if hist is None or len(hist) == 0:
+        raise RuntimeError("empty quote history")
+
+    out: dict[str, dict[str, float]] = {}
+    for s in symbols:
+        if isinstance(hist.columns, pd.MultiIndex):
+            if (s, "Close") not in hist.columns:
+                continue
+            ser = hist[(s, "Close")].dropna()
+        else:
+            ser = hist["Close"].dropna()
+        if len(ser) == 0:
+            continue
+        last = float(ser.iloc[-1])
+        prev = float(ser.iloc[-2]) if len(ser) > 1 else last
+        out[s] = {"last": last, "prev": prev}
+
+    if not out:
+        raise RuntimeError("no valid quote rows")
+    _CACHE["quotes"] = out
+    _CACHE["quotes_ts"] = datetime.now(timezone.utc)
+    return out
+
+
+def _download_history() -> pd.DataFrame:
+    if yf is None:
+        raise RuntimeError("yfinance unavailable")
+    if _cache_is_fresh(_CACHE.get("history_ts"), 900) and isinstance(_CACHE.get("history"), pd.DataFrame):
+        return _CACHE["history"]
+
+    symbols = _symbols()
+    hist = yf.download(
+        symbols,
+        start="2020-01-01",
+        interval="1d",
+        auto_adjust=True,
+        progress=False,
+        group_by="ticker",
+        threads=True,
+    )
+    if hist is None or len(hist) == 0:
+        raise RuntimeError("empty history")
+    _CACHE["history"] = hist
+    _CACHE["history_ts"] = datetime.now(timezone.utc)
+    return hist
+
+
+def _live_holdings_with_prices() -> tuple[list[dict[str, Any]], bool]:
+    try:
+        q = _download_quotes()
+        out: list[dict[str, Any]] = []
+        for h in LIVE_US_PORTFOLIO:
+            cp = float(q.get(h["symbol"], {}).get("last", h["buy_price"]))
+            out.append({**h, "current_price": cp})
+        return out, True
+    except Exception:
+        # Fallback keeps the same live portfolio symbols, using buy_price as current_price.
+        out = [{**h, "current_price": float(h["buy_price"])} for h in LIVE_US_PORTFOLIO]
+        return out, False
+
+
+def _rows() -> tuple[list[dict[str, Any]], bool]:
+    holdings, live = _live_holdings_with_prices()
+    return [holding_metrics(h, AS_OF) for h in holdings], live
 
 
 def snapshot() -> dict[str, Any]:
-    rows = _rows()
+    rows, live = _rows()
     invested = sum(r["invested_value"] for r in rows)
     current = sum(r["current_value"] for r in rows)
-    day_chg = current * ONE_DAY_PCT
+    try:
+        q = _download_quotes() if live else {}
+        qty_map = {h["symbol"]: float(h["quantity"]) for h in LIVE_US_PORTFOLIO}
+        day_chg = 0.0
+        for s, qty in qty_map.items():
+            if s in q:
+                day_chg += qty * (q[s]["last"] - q[s]["prev"])
+    except Exception:
+        day_chg = current * -0.009
     total_gain = current - invested
-    oldest = min(datetime.strptime(str(h["buy_date"])[:10], "%Y-%m-%d").date() for h in DEMO_US_PORTFOLIO)
+    base_holdings = LIVE_US_PORTFOLIO if live else DEMO_US_PORTFOLIO
+    oldest = min(datetime.strptime(str(h["buy_date"])[:10], "%Y-%m-%d").date() for h in base_holdings)
     years = max((AS_OF - oldest).days / 365.25, 0.25)
     cagr = (current / invested) ** (1 / years) - 1 if invested > 0 else 0.0
 
@@ -40,12 +153,14 @@ def snapshot() -> dict[str, Any]:
         "invested": invested,
         "current": current,
         "one_day_change": day_chg,
-        "one_day_pct": ONE_DAY_PCT * 100,
+        "one_day_pct": (day_chg / current * 100.0) if current else 0.0,
         "all_time_gain": total_gain,
         "cagr_pct": cagr * 100,
         "lt_unrealized_pl": lt_pl,
         "st_unrealized_pl": st_pl,
         "as_of": AS_OF,
+        "data_source": "live_yahoo" if live else "static_fallback",
+        "data_source_label": "Live Yahoo Finance" if live else "Static fallback",
     }
 
 
@@ -54,13 +169,22 @@ def snapshot_for_focus(focus: str) -> dict[str, Any]:
     if focus not in ("stocks", "mutual_fund"):
         return snapshot()
     want = "Stock" if focus == "stocks" else "Mutual Fund"
-    holdings = [h for h in DEMO_US_PORTFOLIO if h.get("asset_type") == want]
+    holdings, live = _live_holdings_with_prices()
+    holdings = [h for h in holdings if h.get("asset_type") == want]
     rows = [holding_metrics(h, AS_OF) for h in holdings]
     if not rows:
         return snapshot()
     invested = sum(r["invested_value"] for r in rows)
     current = sum(r["current_value"] for r in rows)
-    day_chg = current * ONE_DAY_PCT
+    try:
+        q = _download_quotes() if live else {}
+        qty_map = {h["symbol"]: float(h["quantity"]) for h in holdings}
+        day_chg = 0.0
+        for s, qty in qty_map.items():
+            if s in q:
+                day_chg += qty * (q[s]["last"] - q[s]["prev"])
+    except Exception:
+        day_chg = current * -0.009
     total_gain = current - invested
     oldest = min(datetime.strptime(str(h["buy_date"])[:10], "%Y-%m-%d").date() for h in holdings)
     years = max((AS_OF - oldest).days / 365.25, 0.25)
@@ -71,19 +195,22 @@ def snapshot_for_focus(focus: str) -> dict[str, Any]:
         "invested": invested,
         "current": current,
         "one_day_change": day_chg,
-        "one_day_pct": ONE_DAY_PCT * 100,
+        "one_day_pct": (day_chg / current * 100.0) if current else 0.0,
         "all_time_gain": total_gain,
         "cagr_pct": cagr * 100,
         "lt_unrealized_pl": lt_pl,
         "st_unrealized_pl": st_pl,
         "as_of": AS_OF,
+        "data_source": "live_yahoo" if live else "static_fallback",
+        "data_source_label": "Live Yahoo Finance" if live else "Static fallback",
     }
 
 
 def allocation_by_focus(focus: str) -> pd.DataFrame:
     """Per-symbol weights within stocks-only or mutual-fund-only demo holdings."""
     want = "Stock" if focus == "stocks" else "Mutual Fund"
-    rows = [holding_metrics(h, AS_OF) for h in DEMO_US_PORTFOLIO if h.get("asset_type") == want]
+    holdings, _ = _live_holdings_with_prices()
+    rows = [holding_metrics(h, AS_OF) for h in holdings if h.get("asset_type") == want]
     return pd.DataFrame(
         {
             "label": [r["symbol"] for r in rows],
@@ -93,23 +220,50 @@ def allocation_by_focus(focus: str) -> pd.DataFrame:
 
 
 def performance_monthly() -> pd.DataFrame:
-    """Synthetic month-end values ending at modeled current value (educational)."""
-    snap = snapshot()
-    end = float(snap["current"])
-    start = float(snap["invested"]) * 0.88
-    months = pd.date_range("2020-01-01", AS_OF.isoformat(), freq="ME")
-    n = len(months)
-    if n < 2:
-        return pd.DataFrame({"Month": months, "Value": [end]})
-    t = np.arange(n, dtype=float)
-    w = (t / (n - 1)) ** 1.12
-    base = start + (end - start) * w
-    # Mild oscillation so the line reads as a real equity curve in charts
-    ripple = 1.0 + 0.022 * np.sin(np.linspace(0, 5 * np.pi, n))
-    dip = 1.0 - 0.04 * np.exp(-0.5 * ((t - (n - 1) * 0.35) / max(n * 0.08, 1)) ** 2)
-    vals = base * ripple * dip
-    vals[-1] = end
-    return pd.DataFrame({"Month": months, "Value": vals})
+    """Live month-end portfolio value from Yahoo; synthetic fallback if unavailable."""
+    try:
+        hist = _download_history()
+        qty = {h["symbol"]: float(h["quantity"]) for h in LIVE_US_PORTFOLIO}
+        close_map: dict[str, pd.Series] = {}
+        for s in _symbols():
+            if isinstance(hist.columns, pd.MultiIndex):
+                if (s, "Close") not in hist.columns:
+                    continue
+                ser = hist[(s, "Close")]
+            else:
+                ser = hist["Close"]
+            close_map[s] = ser.astype(float).ffill()
+        if not close_map:
+            raise RuntimeError("missing close map")
+        idx = sorted(set().union(*(ser.index for ser in close_map.values())))
+        df = pd.DataFrame(index=pd.DatetimeIndex(idx))
+        for s, ser in close_map.items():
+            df[s] = ser.reindex(df.index).ffill()
+        vals = pd.Series(0.0, index=df.index)
+        for s, q in qty.items():
+            if s in df.columns:
+                vals = vals + q * df[s]
+        vals = vals.dropna()
+        month = vals.resample("ME").last().dropna()
+        if len(month) < 2:
+            raise RuntimeError("insufficient monthly points")
+        return pd.DataFrame({"Month": month.index, "Value": month.values})
+    except Exception:
+        snap = snapshot()
+        end = float(snap["current"])
+        start = float(snap["invested"]) * 0.88
+        months = pd.date_range("2020-01-01", AS_OF.isoformat(), freq="ME")
+        n = len(months)
+        if n < 2:
+            return pd.DataFrame({"Month": months, "Value": [end]})
+        t = np.arange(n, dtype=float)
+        w = (t / (n - 1)) ** 1.12
+        base = start + (end - start) * w
+        ripple = 1.0 + 0.022 * np.sin(np.linspace(0, 5 * np.pi, n))
+        dip = 1.0 - 0.04 * np.exp(-0.5 * ((t - (n - 1) * 0.35) / max(n * 0.08, 1)) ** 2)
+        vals = base * ripple * dip
+        vals[-1] = end
+        return pd.DataFrame({"Month": months, "Value": vals})
 
 
 def filter_performance(df: pd.DataFrame, range_key: str) -> pd.DataFrame:
@@ -139,7 +293,7 @@ def filter_performance(df: pd.DataFrame, range_key: str) -> pd.DataFrame:
 
 
 def allocation_by_investment_type() -> pd.DataFrame:
-    rows = _rows()
+    rows, _ = _rows()
     stock_v = sum(r["current_value"] for r in rows if r["asset_type"] == "Stock")
     mf_v = sum(r["current_value"] for r in rows if r["asset_type"] == "Mutual Fund")
     total = stock_v + mf_v or 1.0
@@ -153,7 +307,7 @@ def allocation_by_investment_type() -> pd.DataFrame:
 
 
 def allocation_by_asset() -> pd.DataFrame:
-    rows = _rows()
+    rows, _ = _rows()
     return pd.DataFrame(
         {
             "label": [r["symbol"] for r in rows],
@@ -163,35 +317,66 @@ def allocation_by_asset() -> pd.DataFrame:
 
 
 def transactions_annual() -> pd.DataFrame:
-    """Illustrative net invested per calendar year (USD)."""
-    return pd.DataFrame(
-        {
-            "Year": ["2021", "2022", "2023", "2024", "2025", "2026 (YTD)"],
-            "Net invested": [6200, 11200, 12800, 14100, 13800, 5200],
-        }
-    )
+    """Net invested by buy year from configured portfolio (still static quantities)."""
+    buckets: dict[str, float] = {}
+    for h in LIVE_US_PORTFOLIO:
+        y = str(datetime.strptime(str(h["buy_date"])[:10], "%Y-%m-%d").year)
+        buckets[y] = buckets.get(y, 0.0) + float(h["quantity"]) * float(h["buy_price"])
+    years = sorted(buckets.keys())
+    return pd.DataFrame({"Year": years, "Net invested": [round(buckets[y], 0) for y in years]})
 
 
 def returns_by_type(duration_key: str) -> list[dict[str, Any]]:
     """
     Demo 1-day style moves by bucket. Other durations scale the move for illustration.
     """
-    scale = {
-        "1 Day": 1.0,
-        "1 Week": 1.4,
-        "1 Month": 2.2,
-        "3 Month": 3.0,
-        "YTD": 2.5,
-    }.get(duration_key, 1.0)
-
-    rows = _rows()
+    rows, live = _rows()
     stock_rows = [r for r in rows if r["asset_type"] == "Stock"]
     mf_rows = [r for r in rows if r["asset_type"] == "Mutual Fund"]
     s_val = sum(r["current_value"] for r in stock_rows)
     m_val = sum(r["current_value"] for r in mf_rows)
-    # Uncorrelated demo noise
-    s_ret = -0.0082 * scale
-    m_ret = -0.0090 * scale
+
+    s_ret = -0.0082
+    m_ret = -0.0090
+    if live:
+        try:
+            hist = _download_history()
+            lookback = {"1 Day": 1, "1 Week": 5, "1 Month": 21, "3 Month": 63}.get(duration_key, 1)
+            bucket_syms = {
+                "stocks": [h["symbol"] for h in LIVE_US_PORTFOLIO if h["asset_type"] == "Stock"],
+                "mf": [h["symbol"] for h in LIVE_US_PORTFOLIO if h["asset_type"] == "Mutual Fund"],
+            }
+            qty_map = {h["symbol"]: float(h["quantity"]) for h in LIVE_US_PORTFOLIO}
+
+            def _bucket_ret(syms: list[str]) -> float:
+                vals_now = 0.0
+                vals_then = 0.0
+                for s in syms:
+                    if isinstance(hist.columns, pd.MultiIndex):
+                        if (s, "Close") not in hist.columns:
+                            continue
+                        ser = hist[(s, "Close")].dropna()
+                    else:
+                        ser = hist["Close"].dropna()
+                    if len(ser) < 2:
+                        continue
+                    now = float(ser.iloc[-1])
+                    if duration_key == "YTD":
+                        ystart = datetime(date.today().year, 1, 1)
+                        ser2 = ser[ser.index >= ystart]
+                        then = float(ser2.iloc[0]) if len(ser2) else float(ser.iloc[max(0, len(ser) - 2)])
+                    else:
+                        then = float(ser.iloc[max(0, len(ser) - 1 - lookback)])
+                    q = qty_map.get(s, 0.0)
+                    vals_now += q * now
+                    vals_then += q * then
+                return (vals_now / vals_then - 1.0) if vals_then > 0 else 0.0
+
+            s_ret = _bucket_ret(bucket_syms["stocks"])
+            m_ret = _bucket_ret(bucket_syms["mf"])
+        except Exception:
+            pass
+
     s_chg = s_val * s_ret
     m_chg = m_val * m_ret
     return [
@@ -224,7 +409,7 @@ def portfolio_health_score() -> dict[str, Any]:
     Simple demo health score for the sample portfolio (0-100).
     Combines diversification, allocation balance, concentration, and growth trend.
     """
-    rows = _rows()
+    rows, _ = _rows()
     if not rows:
         return {
             "score": 0,

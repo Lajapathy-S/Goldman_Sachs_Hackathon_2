@@ -342,6 +342,8 @@ def page_portfolio() -> None:
     day_pct = snap["one_day_pct"]
     gain = snap["all_time_gain"]
     cagr = snap["cagr_pct"]
+    src_label = snap.get("data_source_label", "Static fallback")
+    as_of = snap.get("as_of")
     day_cls = "pf-neg" if day < 0 else "pf-pos"
     gain_cls = "pf-pos" if gain >= 0 else "pf-neg"
 
@@ -349,7 +351,8 @@ def page_portfolio() -> None:
         f"""
         <div class="pf-wrap">
         <h1 style="font-family:Georgia,serif;color:#1a2b4b;font-size:2rem;margin:0 0 8px 0;">Portfolio</h1>
-        <p class="pf-sub">All holdings (stocks + mutual funds), USD — illustrative sample only.</p>
+        <p class="pf-sub">All holdings (stocks + mutual funds), USD.</p>
+        <p class="pf-sub" style="margin-top:-10px;">Data source: <strong>{src_label}</strong>{f" · As of {as_of}" if as_of else ""}</p>
         <div class="pf-metric-row">
           <div class="pf-metric-block">
             <div class="pf-metric-label">Current value</div>
