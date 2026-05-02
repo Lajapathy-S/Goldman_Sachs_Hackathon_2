@@ -6,11 +6,11 @@ import streamlit as st
 
 
 def show_plotly_chart(fig, *, key: str | None = None) -> None:
-    """Render Plotly: theme=None keeps our colors; stretch width + fixed height for reliable display."""
+    """Render Plotly with explicit sizing so charts stay visible inside columns/containers."""
+    fig.update_layout(autosize=False)
     kwargs: dict = {
-        "width": "stretch",
+        "use_container_width": True,
         "height": 420,
-        "theme": None,
         "config": {
             "responsive": True,
             "displayModeBar": True,
@@ -64,8 +64,9 @@ def inject_portfolio_dashboard_css() -> None:
         f"""
         <style>
         .js-plotly-plot .plotly .main-svg {{ background: #ffffff !important; }}
-        [data-testid="stPlotlyChart"] {{ min-height: 320px; }}
-        iframe[title="plotly"] {{ min-height: 300px; }}
+        [data-testid="stPlotlyChart"] {{ min-height: 400px !important; }}
+        [data-testid="stPlotlyChart"] > div {{ min-height: 380px; }}
+        iframe[title="plotly"] {{ min-height: 360px; }}
         .pf-wrap {{
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
             color: {NAVY};
@@ -167,7 +168,7 @@ def chart_performance(df, title: str = "Performance"):
         title=dict(text=title, font=dict(size=18, color=NAVY, family="Georgia, serif")),
         margin=dict(l=16, r=16, t=48, b=16),
         height=380,
-        autosize=True,
+        autosize=False,
         xaxis=dict(zeroline=False),
         yaxis=dict(
             tickprefix="$",
@@ -201,7 +202,7 @@ def chart_donut(labels: list[str], values: list[float], title: str | None = None
     layout = dict(
         margin=dict(l=16, r=16, t=24 if not title else 48, b=16),
         height=380,
-        autosize=True,
+        autosize=False,
         showlegend=True,
         legend=dict(
             orientation="v",
@@ -240,7 +241,7 @@ def chart_transactions(df):
         ),
         margin=dict(l=16, r=16, t=56, b=16),
         height=360,
-        autosize=True,
+        autosize=False,
         xaxis=dict(title=""),
         yaxis=dict(title="", tickprefix="$", tickformat=",.0f"),
         showlegend=False,
@@ -272,7 +273,7 @@ def chart_lt_st(lt: float, st: float, tax_year_label: str):
         ),
         margin=dict(l=16, r=48, t=56, b=16),
         height=320,
-        autosize=True,
+        autosize=False,
         xaxis=dict(
             tickprefix="$",
             tickformat=",.0f",

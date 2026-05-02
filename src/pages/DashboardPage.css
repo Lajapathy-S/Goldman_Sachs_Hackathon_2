@@ -168,7 +168,8 @@
 
 .vr-chart-block {
   width: 100%;
-  min-height: 260px;
+  height: 280px;
+  min-height: 280px;
 }
 
 .vr-card-link {
@@ -258,6 +259,7 @@
 }
 
 .vr-alloc-chart {
+  height: 220px;
   min-height: 220px;
 }
 

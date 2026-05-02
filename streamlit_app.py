@@ -468,7 +468,7 @@ def page_portfolio() -> None:
             else:
                 show_plotly_chart(chart_donut(labels, values, title=None), key="pf_alloc_chart")
             st.markdown(
-                '<p class="pf-footlink">See detailed breakdown — same demo holdings as portfolio metrics</p>',
+                '<p class="pf-footlink">See detailed breakdown — same sample holdings as portfolio metrics</p>',
                 unsafe_allow_html=True,
             )
 
