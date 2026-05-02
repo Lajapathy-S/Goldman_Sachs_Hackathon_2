@@ -761,6 +761,19 @@ def _append_whatif_response(user_text: str, prior_history: list[tuple[str, str]]
         st.session_state["_last_whatif_api_error"] = api_err
 
 
+def _extract_reba_followup_questions(text: str) -> list[str]:
+    """Extract question options from assistant bullets like '**Question 1:** ...'."""
+    if not text:
+        return []
+    matches = re.findall(r"\*\*Question\s*[1-3]\s*:\*\*\s*(.+)", text, flags=re.I)
+    out: list[str] = []
+    for q in matches:
+        clean = re.sub(r"\s+", " ", q).strip().rstrip(" -")
+        if clean and clean not in out:
+            out.append(clean)
+    return out[:3]
+
+
 def _goal_chat_pop_last_turn() -> None:
     for _ in range(2):
         if st.session_state.goal_chat_messages:
@@ -989,6 +1002,7 @@ def page_agent() -> None:
                     for r, c in st.session_state.agent_messages
                     if r in ("user", "assistant")
                 ]
+                st.session_state["reba_conversation_closed"] = False
                 st.session_state.agent_messages.append(("user", p))
                 _append_whatif_response(p, prior)
                 st.rerun()
@@ -998,10 +1012,6 @@ def page_agent() -> None:
                 st.markdown(content)
 
         src = st.session_state.get("_last_whatif_source")
-        if src in ("claude", "fallback"):
-            st.caption(
-                f"Last reply source: **{'Claude API' if src == 'claude' else 'Built-in template'}**"
-            )
         _api_err = st.session_state.get("_last_whatif_api_error")
         if get_api_key() and src == "fallback" and _api_err:
             st.warning(
@@ -1010,18 +1020,57 @@ def page_agent() -> None:
                 "Check your API key, billing, and that **`ANTHROPIC_MODEL`** (if set) is a current model ID."
             )
 
-        if prompt := st.chat_input("Ask REBA a finance question…"):
+        is_closed = bool(st.session_state.get("reba_conversation_closed", False))
+        latest_assistant = next(
+            (c for r, c in reversed(st.session_state.agent_messages) if r == "assistant"),
+            "",
+        )
+        q_opts = _extract_reba_followup_questions(latest_assistant)
+        if q_opts and not is_closed:
+            st.write("**Suggested follow-up questions**")
+            qcols = st.columns(3)
+            for i, q in enumerate(q_opts):
+                if qcols[i].button(q, key=f"reba_qopt_{i}", use_container_width=True):
+                    prior = [
+                        (r, c)
+                        for r, c in st.session_state.agent_messages
+                        if r in ("user", "assistant")
+                    ]
+                    st.session_state["reba_conversation_closed"] = False
+                    st.session_state.agent_messages.append(("user", q))
+                    _append_whatif_response(q, prior)
+                    st.rerun()
+            if st.button("I am happy!", key="reba_happy", use_container_width=True):
+                st.session_state.agent_messages.append(("user", "I am happy!"))
+                st.session_state.agent_messages.append(
+                    (
+                        "assistant",
+                        "- Glad this helped.\n"
+                        "- If you want, I can help with another scenario later.\n"
+                        "- You can click **Start new REBA conversation** anytime.",
+                    )
+                )
+                st.session_state["reba_conversation_closed"] = True
+                st.rerun()
+
+        if not is_closed and (prompt := st.chat_input("Ask REBA a finance question…")):
             prior = [
                 (r, c)
                 for r, c in st.session_state.agent_messages
                 if r in ("user", "assistant")
             ]
+            st.session_state["reba_conversation_closed"] = False
             st.session_state.agent_messages.append(("user", prompt))
             _append_whatif_response(prompt, prior)
             st.rerun()
+        elif is_closed:
+            if st.button("Start new REBA conversation", key="reba_reopen"):
+                st.session_state["reba_conversation_closed"] = False
+                st.rerun()
 
         if st.button("Clear chat history"):
             st.session_state.agent_messages = []
+            st.session_state["reba_conversation_closed"] = False
             st.session_state.pop("_last_whatif_source", None)
             st.session_state.pop("_last_whatif_api_error", None)
             st.rerun()
