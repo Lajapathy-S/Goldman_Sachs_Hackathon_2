@@ -180,7 +180,10 @@ def _inject_login_page_css() -> None:
             display: inline-block;
             margin-right: 10px;
             vertical-align: top;
+            position: relative;
         }
+        /* Open panel stacks above siblings (named <details> closes others in group). */
+        .gs-login-nav details[open] { z-index: 40; }
         .gs-login-nav details > summary {
             cursor: pointer;
             list-style: none;
@@ -190,6 +193,8 @@ def _inject_login_page_css() -> None:
         .gs-login-nav details > summary::-webkit-details-marker { display: none; }
         .gs-login-nav .gs-dd-body {
             position: absolute;
+            left: 0;
+            top: 100%;
             z-index: 20;
             margin-top: 6px;
             padding: 10px 12px;
@@ -204,7 +209,6 @@ def _inject_login_page_css() -> None:
             line-height: 1.5;
             color: #334155;
         }
-        .gs-login-nav details { position: relative; }
         .gs-login-nav .gs-plain {
             display: inline-block;
             margin-right: 12px;
@@ -265,7 +269,7 @@ def login_screen() -> None:
     _inject_login_page_css()
 
     st.markdown(
-        '<div style="background:#a2b9d6;padding:14px 6vw;border-bottom:1px solid rgba(26,26,26,0.1);">',
+        '<div style="background:#a2b9d6;padding:28px 7vw 30px 7vw;border-bottom:1px solid rgba(26,26,26,0.1);">',
         unsafe_allow_html=True,
     )
     c_brand, c_nav, c_demo, c_btn = st.columns([1.5, 3.4, 0.65, 1.25], gap="small")
@@ -278,14 +282,14 @@ def login_screen() -> None:
         st.markdown(
             """
             <div class="gs-login-nav" style="padding-top:4px;font-size:0.88rem;font-family:'Source Sans 3',system-ui,sans-serif;">
-            <details>
+            <details name="aichemist-landing-nav">
               <summary>portfolio ▾</summary>
               <div class="gs-dd-body">
                 <strong>Stocks</strong> — Demo equity positions, performance, and how they move the mix.<br/><br/>
                 <strong>Mutual funds</strong> — Demo fund holdings and diversification in the sample portfolio.
               </div>
             </details>
-            <details>
+            <details name="aichemist-landing-nav">
               <summary>agents ▾</summary>
               <div class="gs-dd-body">
                 <strong>Guided goal setting</strong> — A short, chat-style flow that captures your goal, timeline,
@@ -293,7 +297,7 @@ def login_screen() -> None:
               </div>
             </details>
             <span class="gs-plain">tools&amp;resources</span>
-            <details>
+            <details name="aichemist-landing-nav">
               <summary>company ▾</summary>
               <div class="gs-dd-body">
                 <strong>Overview</strong> — AIChemist is an educational workspace for exploring portfolio ideas,
@@ -577,6 +581,7 @@ def _inject_gs_workspace_css() -> None:
         [data-testid="stSidebar"] {
             background: linear-gradient(180deg, #a2b9d6 0%, #98b0cd 100%) !important;
             border-right: 1px solid rgba(26, 26, 26, 0.12) !important;
+            min-width: 300px !important;
         }
         [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label,
         [data-testid="stSidebar"] .stMarkdown { color: #1a1a1a !important; }
