@@ -316,6 +316,7 @@ def login_screen() -> None:
 def page_portfolio() -> None:
     from streamlit_portfolio_ui import (
         inject_portfolio_dashboard_css,
+        render_card_header,
         render_allocation_chart,
         render_health_score_card,
         render_performance_chart,
@@ -372,7 +373,10 @@ def page_portfolio() -> None:
     )
 
     with st.container(border=True):
-        st.markdown('<p class="pf-serif">Portfolio health score</p>', unsafe_allow_html=True)
+        render_card_header(
+            "Portfolio health score",
+            "A quick composite score based on sample diversification, allocation balance, concentration risk, and growth trend.",
+        )
         health = portfolio_health_score()
         render_health_score_card(health)
 
@@ -382,7 +386,10 @@ def page_portfolio() -> None:
 
     with col_left:
         with st.container(border=True):
-            st.markdown('<p class="pf-serif">Performance</p>', unsafe_allow_html=True)
+            render_card_header(
+                "Performance",
+                "Shows how your portfolio value has changed over time, including gains and losses.",
+            )
             if hasattr(st, "segmented_control"):
                 sel_range = st.segmented_control(
                     "Range",
@@ -405,7 +412,10 @@ def page_portfolio() -> None:
 
     with col_right:
         with st.container(border=True):
-            st.markdown('<p class="pf-serif">Allocation</p>', unsafe_allow_html=True)
+            render_card_header(
+                "Allocation",
+                "Displays how your investments are distributed across different asset types.",
+            )
             alloc_mode = st.radio(
                 "View",
                 ["By holding", "By investment type"],
@@ -434,7 +444,10 @@ def page_portfolio() -> None:
 
     with t1:
         with st.container(border=True):
-            st.markdown('<p class="pf-serif">Transactions</p>', unsafe_allow_html=True)
+            render_card_header(
+                "Transactions",
+                "A record of all your buy and sell activities in the portfolio.",
+            )
             st.markdown(
                 '<p class="pf-sub" style="margin-top:-8px;">Amount invested annually, net of withdrawals (sample)</p>',
                 unsafe_allow_html=True,
@@ -448,7 +461,10 @@ def page_portfolio() -> None:
 
     with t2:
         with st.container(border=True):
-            st.markdown('<p class="pf-serif">Unrealized gains context</p>', unsafe_allow_html=True)
+            render_card_header(
+                "Unrealized gains",
+                "The profit or loss from your current investments that you have not sold yet.",
+            )
             ty = snap["as_of"].year
             st.markdown(
                 f'<p class="pf-sub" style="margin-top:-8px;">CY {ty}: unrealized buckets (educational)</p>',
@@ -465,7 +481,10 @@ def page_portfolio() -> None:
 
     with t3:
         with st.container(border=True):
-            st.markdown('<p class="pf-serif">Returns by investment type</p>', unsafe_allow_html=True)
+            render_card_header(
+                "Returns by investment type",
+                "Breaks down your returns based on different categories of investments.",
+            )
             dur = st.selectbox(
                 "Duration",
                 ["1 Day", "1 Week", "1 Month", "3 Month", "YTD"],

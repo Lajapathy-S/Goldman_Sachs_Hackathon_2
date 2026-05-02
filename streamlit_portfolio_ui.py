@@ -8,6 +8,7 @@ Altair/Vega-Lite render reliably in the same environments.
 
 from __future__ import annotations
 
+import html
 import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
@@ -25,6 +26,24 @@ RED = "#b91c1c"
 MUTED = "#64748b"
 
 ALLOC_COLORS = ["#1e3a5f", "#0f766e", "#457b9d", "#a8dadc", "#e9c46a", "#bc6c25"]
+
+
+def render_card_header(title: str, info_text: str) -> None:
+    """Section title with inline info panel trigger."""
+    safe_title = html.escape(title)
+    safe_info = html.escape(info_text)
+    st.markdown(
+        f"""
+        <div class="pf-head">
+          <p class="pf-serif" style="margin:0;">{safe_title}</p>
+          <details class="pf-info">
+            <summary aria-label="More info">i</summary>
+            <div class="pf-info-panel">{safe_info}</div>
+          </details>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render_performance_chart(perf_df: pd.DataFrame) -> None:
@@ -191,6 +210,48 @@ def inject_portfolio_dashboard_css() -> None:
             color: {NAVY};
             margin: 0 0 4px 0;
             font-size: 1.35rem;
+        }}
+        .pf-head {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+        }}
+        .pf-info {{
+            position: relative;
+        }}
+        .pf-info summary {{
+            list-style: none;
+            cursor: pointer;
+            width: 22px;
+            height: 22px;
+            border-radius: 999px;
+            border: 1px solid #a7bdd9;
+            color: #1e3a5f;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.82rem;
+            font-weight: 700;
+            user-select: none;
+            background: #f8fafc;
+        }}
+        .pf-info summary::-webkit-details-marker {{ display: none; }}
+        .pf-info-panel {{
+            position: absolute;
+            right: 0;
+            top: 28px;
+            width: min(320px, 70vw);
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+            padding: 10px 12px;
+            color: #334155;
+            font-size: 0.84rem;
+            line-height: 1.5;
+            z-index: 30;
         }}
         .pf-sub {{
             font-size: 0.88rem;
