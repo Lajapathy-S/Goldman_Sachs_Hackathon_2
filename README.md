@@ -13,7 +13,9 @@ pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-Log in with **admin** / **admin**. Optional: add `.streamlit/secrets.toml`:
+Log in with **admin** / **admin**. **Tax Planning** (no login): U.S. federal demo for stocks & mutual funds—snapshots, opportunities, scenario slider, and ELI5 expanders.
+
+Under **Agent**: *What-if chat* (bullet answers via Claude) and *Guided goal-setting* (questionnaire + Claude bullet summary). Optional: add `.streamlit/secrets.toml`:
 
 ```toml
 ANTHROPIC_API_KEY = "your-key"

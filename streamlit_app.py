@@ -25,6 +25,15 @@ import streamlit as st
 
 from streamlit_claude_client import goal_coach_reply, whatif_reply
 from streamlit_rebalance import SCENARIO_PROMPTS, run_rebalance, sum_by_type
+from utils.tax_calculator import (
+    DEMO_US_PORTFOLIO,
+    DEMO_USER_PROFILE,
+    FILING_STATUSES,
+    calculate_tax_summary,
+    detect_tax_opportunities,
+    generate_simple_tax_plan,
+    simulate_sale_scenario,
+)
 
 st.set_page_config(
     page_title="AIChemist",
@@ -128,6 +137,220 @@ def get_goal_profile() -> dict[str, Any] | None:
         return json.loads(raw)
     except json.JSONDecodeError:
         return None
+
+
+def page_tax_planning() -> None:
+    """U.S. tax education tab — no login; no persistence."""
+    st.title("Tax Planning for Your Portfolio")
+    st.caption("Understand possible tax impact before selling your stocks and mutual funds.")
+    st.warning(
+        "**Disclaimer:** Actual U.S. tax treatment depends on your filing status, income, "
+        "state taxes, account type, and personal situation. This page is a **simplified demo** "
+        "only—not legal or tax advice."
+    )
+
+    with st.expander("Your profile (demo inputs — adjust brackets)", expanded=True):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            annual_income = st.number_input(
+                "Annual income (approx.)",
+                min_value=0,
+                value=int(DEMO_USER_PROFILE["annual_income"]),
+                step=1000,
+                key="tax_annual",
+            )
+            taxable_income = st.number_input(
+                "Federal taxable income (approx.)",
+                min_value=0,
+                value=int(DEMO_USER_PROFILE["taxable_income"]),
+                step=1000,
+                key="tax_taxable",
+            )
+            filing_status = st.selectbox(
+                "Filing status",
+                FILING_STATUSES,
+                index=FILING_STATUSES.index(DEMO_USER_PROFILE["filing_status"]),
+                key="tax_filing",
+            )
+        with c2:
+            state = st.text_input(
+                "State (informational)", value=DEMO_USER_PROFILE["state"], key="tax_state"
+            )
+            age = st.number_input(
+                "Age", min_value=18, max_value=100, value=int(DEMO_USER_PROFILE["age"]), key="tax_age"
+            )
+            investment_goal = st.text_input(
+                "Investment goal",
+                value=DEMO_USER_PROFILE["investment_goal"],
+                key="tax_goal",
+            )
+        with c3:
+            horizon = st.number_input(
+                "Goal horizon (years)",
+                min_value=1,
+                max_value=60,
+                value=int(DEMO_USER_PROFILE["goal_time_horizon_years"]),
+                key="tax_horizon",
+            )
+            st.caption("No data is stored. Refresh resets widgets unless browser keeps state.")
+
+    profile: dict[str, Any] = {
+        "annual_income": annual_income,
+        "taxable_income": taxable_income,
+        "filing_status": filing_status,
+        "state": state,
+        "age": age,
+        "investment_goal": investment_goal,
+        "goal_time_horizon_years": horizon,
+    }
+
+    portfolio = DEMO_US_PORTFOLIO
+    summary = calculate_tax_summary(portfolio, profile)
+    opps = detect_tax_opportunities(portfolio, profile)
+
+    st.subheader("1. Tax Snapshot")
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric(
+        "Est. federal tax if sold today",
+        f"${summary['estimated_federal_tax_if_sold_today']:,.0f}",
+        help="Demo: tax on unrealized gains if everything were sold now, incl. simplified NIIT on gains when over threshold.",
+    )
+    m2.metric("Total unrealized gains", f"${summary['total_unrealized_gains']:,.0f}")
+    m3.metric(
+        "Dividend income (annual, inputs)",
+        f"${summary['dividend_income']:,.0f}",
+        help="Sum of expected_dividend_income from the demo holdings; tax handled separately in modeling.",
+    )
+    m4.metric(
+        "Tax-loss harvesting potential (losses)",
+        f"${summary['tax_loss_harvesting_potential']:,.0f}",
+        help="Unrealized losses could sometimes offset gains; rules apply.",
+    )
+
+    st.subheader("2. Gain breakdown")
+    st.info(
+        "**Mutual funds:** Selling shares follows the same short-term vs long-term idea as stocks in this demo. "
+        "Mutual funds may also distribute taxable capital gains even if you do not sell shares—this prototype "
+        "estimates taxes mainly from **selling your holdings**."
+    )
+    tbl = []
+    for r in summary["holdings_detail"]:
+        hp = r["holding_period_days"]
+        hp_label = f"{hp} days (~{hp/365:.1f} yr)"
+        tbl.append(
+            {
+                "Holding": r["name"],
+                "Symbol": r["symbol"],
+                "Asset type": r["asset_type"],
+                "Invested": r["invested_value"],
+                "Current value": r["current_value"],
+                "Unrealized gain/loss": r["unrealized_gain_loss"],
+                "Holding period": hp_label,
+                "Gain type": r["gain_type"],
+                "Est. federal tax if sold now": r["estimated_federal_tax_if_sold_now"],
+            }
+        )
+    st.dataframe(pd.DataFrame(tbl), use_container_width=True, hide_index=True)
+
+    st.subheader("3. Tax opportunities")
+    pri_color = {"High": "🔴", "Medium": "🟠", "Low": "⚪"}
+    for o in opps:
+        with st.expander(f"{pri_color.get(o['priority'], '•')} **{o['title']}** — {o['priority']} priority"):
+            st.markdown(f"**What it means:** {o['explanation']}")
+            st.markdown(f"**In plain English:** {o['beginner_translation']}")
+            st.markdown(f"**You may want to:** {o['possible_action']}")
+            st.caption(o["estimated_impact"])
+
+    st.subheader("4. Scenario analysis")
+    c1, c2 = st.columns(2)
+    with c1:
+        sell_pct = st.slider("Percent of portfolio to sell (by value)", 0, 100, 25, key="tax_sell_pct")
+    with c2:
+        strategy = st.selectbox(
+            "Sell strategy",
+            [
+                "Sell proportionally",
+                "Sell loss-making holdings first",
+                "Sell long-term holdings first",
+                "Sell high-risk holdings first",
+            ],
+            key="tax_strategy",
+        )
+    sim = simulate_sale_scenario(portfolio, profile, sell_pct, strategy)
+    st.metric("Amount sold (demo)", f"${sim['amount_sold']:,.0f}")
+    c3, c4, c5 = st.columns(3)
+    c3.metric("Realized gain/loss (approx.)", f"${sim['realized_gain_loss']:,.0f}")
+    c4.metric("Estimated federal tax (demo)", f"${sim['estimated_federal_tax']:,.0f}")
+    st.write(sim["explanation"])
+    if sim["holdings_affected"]:
+        st.write("**Holdings affected (demo)**")
+        for line in sim["holdings_affected"]:
+            st.write(f"- {line}")
+
+    st.subheader("5. Explain like I’m new")
+    with st.expander("What is unrealized gain?"):
+        st.write(
+            "An **unrealized gain** is the profit you would have if you sold today, compared with what you paid, "
+            "but you have not sold yet—so the IRS usually has not taxed it as a capital gain. "
+            "It can go up or down with the market. "
+            "This demo uses your quantity × price to estimate it."
+        )
+    with st.expander("What is short-term capital gain?"):
+        st.write(
+            "For this demo, if you held a stock or mutual fund **one year or less**, a gain is treated as **short-term**. "
+            "Short-term gains are generally taxed like ordinary income at federal level in simplified modeling. "
+            "Rates depend on your bracket. "
+            "Always confirm with a tax professional."
+        )
+    with st.expander("What is long-term capital gain?"):
+        st.write(
+            "If you held **more than one year**, a gain may be **long-term** in this demo. "
+            "Federal long-term rates are often **0%, 15%, or 20%** depending on taxable income (simplified tables here). "
+            "That can be lower than ordinary rates for many people. "
+            "Rules have exceptions—this is educational only."
+        )
+    with st.expander("What is tax-loss harvesting?"):
+        st.write(
+            "**Tax-loss harvesting** means realizing losses on purpose to offset realized gains, within IRS rules. "
+            "If losses exceed gains, you might use a limited amount against ordinary income and carry forward the rest. "
+            "Wash sale rules can block the loss if you rebuy too soon. "
+            "Consider a CPA before relying on this strategy."
+        )
+    with st.expander("What is a wash sale?"):
+        st.write(
+            "A **wash sale** can happen if you sell at a loss and buy the **same or substantially identical** "
+            "investment within **30 days before or after** the sale. "
+            "The loss may be disallowed for current-year taxes. "
+            "Beginners should be careful around repurchasing the same ticker quickly. "
+            "This is a simplified reminder, not a complete rule list."
+        )
+    with st.expander("What is dividend tax?"):
+        st.write(
+            "**Qualified dividends** are often taxed like long-term gains in simplified modeling. "
+            "**Non-qualified** dividends are often taxed at ordinary rates. "
+            "Funds and stocks may pay dividends even if you do not sell. "
+            "Your broker statements help sort the types."
+        )
+    with st.expander("Why can selling investments create taxes?"):
+        st.write(
+            "When you sell for more than your **cost basis** (roughly what you paid), you may have a **realized gain** "
+            "that can be taxable. "
+            "Selling at a loss may create a realized loss that might help offset gains, with limits. "
+            "Dividends and fund distributions can also create tax without a sale. "
+            "Account type (taxable vs retirement) matters a lot—this demo assumes a **taxable** mindset."
+
+        )
+
+    st.subheader("6. Simple tax plan")
+    plan_lines = generate_simple_tax_plan(portfolio, profile)
+    for i, line in enumerate(plan_lines, 1):
+        st.write(f"{i}. {line}")
+    copy_text = "\n".join(f"{i}. {line}" for i, line in enumerate(plan_lines, 1))
+    copy_text += (
+        "\n\n---\nActual U.S. tax treatment depends on your filing status, income, state taxes, "
+        "account type, and personal situation."
+    )
+    st.text_area("Copy-friendly summary", value=copy_text, height=220, key="tax_copy_area")
 
 
 def login_screen() -> None:
@@ -495,24 +718,33 @@ def page_rebalance() -> None:
 
 
 def main() -> None:
+    with st.sidebar:
+        st.markdown("### Workspace")
+        page = st.radio(
+            "Navigate",
+            ["Tax Planning", "Portfolio", "Agent", "AI Rebalance"],
+            label_visibility="collapsed",
+        )
+        st.divider()
+        if page == "Tax Planning":
+            st.caption("Tax Planning needs **no login**.")
+        elif st.session_state.logged_in:
+            if st.button("Log out"):
+                st.session_state.logged_in = False
+                st.rerun()
+            st.caption("Demo login: admin / admin")
+        else:
+            st.caption("Log in with **admin** / **admin** for Portfolio, Agent, and AI Rebalance.")
+
+    if page == "Tax Planning":
+        page_tax_planning()
+        return
+
     if not st.session_state.logged_in:
         login_screen()
         return
 
     sync_anthropic_env_from_secrets()
-
-    with st.sidebar:
-        st.markdown("### Workspace")
-        page = st.radio(
-            "Navigate",
-            ["Portfolio", "Agent", "AI Rebalance"],
-            label_visibility="collapsed",
-        )
-        st.divider()
-        if st.button("Log out"):
-            st.session_state.logged_in = False
-            st.rerun()
-        st.caption("Demo login: admin / admin")
 
     if page == "Portfolio":
         page_portfolio()
