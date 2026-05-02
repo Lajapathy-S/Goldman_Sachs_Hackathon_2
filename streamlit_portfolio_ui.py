@@ -121,32 +121,32 @@ def render_health_score_card(health: dict) -> None:
     needle_deg = 180.0 - 180.0 * (score / 100.0)
 
     gauge_html = f"""
-    <div style="display:flex;justify-content:center;align-items:center;width:100%;padding-top:6px;">
-      <div style="width:min(620px,98%);text-align:center;">
-        <svg viewBox="0 0 360 250" width="100%" height="250" aria-hidden="true">
-          <!-- outer semicircle bands -->
-          <path d="M 40 180 A 140 140 0 0 1 100 78" fill="none" stroke="#e35d5b" stroke-width="22" stroke-linecap="round"/>
-          <path d="M 100 78 A 140 140 0 0 1 145 50" fill="none" stroke="#dfa443" stroke-width="22" stroke-linecap="butt"/>
-          <path d="M 145 50 A 140 140 0 0 1 195 50" fill="none" stroke="#efd45a" stroke-width="22" stroke-linecap="butt"/>
-          <path d="M 195 50 A 140 140 0 0 1 250 78" fill="none" stroke="#a8efba" stroke-width="22" stroke-linecap="butt"/>
-          <path d="M 250 78 A 140 140 0 0 1 320 180" fill="none" stroke="#6bcf70" stroke-width="22" stroke-linecap="round"/>
+    <div style="display:flex;justify-content:center;align-items:center;width:100%;padding-top:4px;">
+      <div style="width:min(680px,99%);text-align:center;">
+        <svg viewBox="0 0 420 280" width="100%" height="280" aria-hidden="true">
+          <!-- exact top semicircle: center (210,200), radius 150 -->
+          <path d="M 60 200 A 150 150 0 0 1 150 70" fill="none" stroke="#e35d5b" stroke-width="24" stroke-linecap="butt"/>
+          <path d="M 150 70 A 150 150 0 0 1 195 54" fill="none" stroke="#dfa443" stroke-width="24" stroke-linecap="butt"/>
+          <path d="M 195 54 A 150 150 0 0 1 225 54" fill="none" stroke="#efd45a" stroke-width="24" stroke-linecap="butt"/>
+          <path d="M 225 54 A 150 150 0 0 1 270 70" fill="none" stroke="#a8efba" stroke-width="24" stroke-linecap="butt"/>
+          <path d="M 270 70 A 150 150 0 0 1 360 200" fill="none" stroke="#6bcf70" stroke-width="24" stroke-linecap="butt"/>
 
-          <!-- dotted inner guide -->
-          <path d="M 52 180 A 128 128 0 0 1 308 180"
+          <!-- inner dotted guide -->
+          <path d="M 72 200 A 138 138 0 0 1 348 200"
                 fill="none"
                 stroke="#d8dee8"
                 stroke-width="4"
                 stroke-linecap="round"
-                stroke-dasharray="2 10" />
+                stroke-dasharray="2 11" />
 
           <!-- needle -->
-          <g transform="translate(180 180) rotate({needle_deg})">
-            <polygon points="-4,-8 102,0 -4,8 12,0" fill="#1e3a5f"></polygon>
+          <g transform="translate(210 200) rotate({needle_deg})">
+            <polygon points="-4,-8 112,0 -4,8 16,0" fill="#1e3a5f"></polygon>
           </g>
-          <circle cx="180" cy="180" r="8" fill="#1e3a5f"></circle>
+          <circle cx="210" cy="200" r="8" fill="#1e3a5f"></circle>
         </svg>
-        <p style="margin:-32px 0 2px 0;font-size:2.25rem;font-weight:700;color:{label_color};">{label}</p>
-        <p style="margin:0 0 8px 0;font-size:3.05rem;font-weight:800;color:#1e3a5f;line-height:1;">{score}</p>
+        <p style="margin:-46px 0 0 0;font-size:2.25rem;font-weight:700;color:{label_color};line-height:1.05;">{label}</p>
+        <p style="margin:4px 0 8px 0;font-size:3.05rem;font-weight:800;color:#1e3a5f;line-height:1;">{score}</p>
       </div>
     </div>
     """
