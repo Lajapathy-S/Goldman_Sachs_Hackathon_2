@@ -276,7 +276,7 @@ def login_screen() -> None:
         '<div style="background:#a2b9d6;padding:28px 7vw 30px 7vw;border-bottom:1px solid rgba(26,26,26,0.1);">',
         unsafe_allow_html=True,
     )
-    c_brand, c_nav, c_demo, c_btn = st.columns([1.5, 3.4, 0.65, 1.25], gap="small")
+    c_brand, c_nav, c_btn = st.columns([1.5, 4.05, 1.25], gap="small")
     with c_brand:
         st.markdown(
             '<p style="font-family:Georgia,serif;font-size:1.35rem;font-weight:700;color:#0f172a;margin:0;padding-top:4px;">AIChemist</p>',
@@ -302,11 +302,6 @@ def login_screen() -> None:
             </details>
             </div>
             """,
-            unsafe_allow_html=True,
-        )
-    with c_demo:
-        st.markdown(
-            '<p style="margin:0;padding-top:10px;font-size:0.82rem;color:#334155;">Demo</p>',
             unsafe_allow_html=True,
         )
     with c_btn:
