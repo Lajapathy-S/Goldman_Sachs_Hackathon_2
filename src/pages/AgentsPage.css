@@ -1,0 +1,271 @@
+.agents-shell {
+  min-height: calc(100vh - var(--header-h));
+  padding: 1.5rem 0 3rem;
+  background: #fff;
+}
+
+.agents-chat-wrap {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.agents-chat-header {
+  text-align: left;
+}
+
+.agents-spark {
+  display: inline-block;
+  font-size: 1.1rem;
+  line-height: 1;
+  margin-bottom: 0.35rem;
+  color: #111827;
+}
+
+.agents-chat-header h1 {
+  font-family: var(--font-sans);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: #0a0a0a;
+}
+
+.agents-chat-sub {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #6b7280;
+}
+
+.agents-prompt-hero {
+  background: #f5f5f7;
+  border-radius: 14px;
+  padding: 1.25rem 1.25rem 1.35rem;
+}
+
+.agents-prompt-label {
+  margin: 0 0 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+
+.agents-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.agents-chip {
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  border-radius: var(--radius-pill);
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+}
+
+.agents-chip:hover {
+  border-color: #d1d5db;
+  background: #fafafa;
+}
+
+.agents-messages {
+  flex: 1;
+  max-height: min(52vh, 480px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.25rem 0;
+}
+
+.agents-empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #9ca3af;
+  line-height: 1.5;
+  padding: 0.5rem 0;
+}
+
+.agents-msg {
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  max-width: 100%;
+}
+
+.agents-msg--user {
+  align-self: flex-end;
+  background: #111827;
+  color: #fff;
+  max-width: 90%;
+}
+
+.agents-msg--user .agents-msg-text {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.agents-msg--assistant {
+  align-self: stretch;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.agents-msg--assistant .agents-msg-text {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #374151;
+}
+
+.agents-msg--assistant .agents-msg-text:last-child {
+  margin-bottom: 0;
+}
+
+.agents-msg--guard {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+.agents-msg--guard .agents-msg-text {
+  color: #78350f;
+}
+
+.agent-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.agent-plan-headline {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.45;
+}
+
+.agent-plan-section {
+  margin: 0;
+}
+
+.agent-plan-h {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280;
+}
+
+.agent-plan-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #374151;
+}
+
+.agent-plan-list li {
+  margin-bottom: 0.35rem;
+}
+
+.agent-transparency {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #e5e7eb;
+}
+
+.agent-t-block {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+}
+
+.agent-t-block h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #1e40af;
+}
+
+.agent-t-block p {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: #4b5563;
+}
+
+.agents-composer {
+  margin-top: 0.25rem;
+}
+
+.agents-composer-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #f5f5f7;
+  border-radius: 16px;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+}
+
+.agents-input {
+  flex: 1;
+  border: none;
+  background: #fff;
+  border-radius: var(--radius-pill);
+  padding: 0.65rem 1rem;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: #111827;
+  min-width: 0;
+}
+
+.agents-input::placeholder {
+  color: #9ca3af;
+}
+
+.agents-input:focus {
+  outline: 2px solid #dbeafe;
+  outline-offset: 0;
+}
+
+.agents-send {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #0a0a0a;
+  color: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.agents-send:hover {
+  background: #1f2937;
+}
+
+.agents-footer-note {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #6b7280;
+  max-width: 640px;
+}
