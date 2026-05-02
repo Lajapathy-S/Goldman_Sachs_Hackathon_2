@@ -25,15 +25,6 @@ import streamlit as st
 
 from streamlit_claude_client import goal_coach_reply, whatif_reply
 from streamlit_rebalance import SCENARIO_PROMPTS, run_rebalance, sum_by_type
-from utils.tax_calculator import (
-    DEMO_US_PORTFOLIO,
-    DEMO_USER_PROFILE,
-    FILING_STATUSES,
-    calculate_tax_summary,
-    detect_tax_opportunities,
-    generate_simple_tax_plan,
-    simulate_sale_scenario,
-)
 
 st.set_page_config(
     page_title="AIChemist",
@@ -50,6 +41,7 @@ for k, v in [
     ("goal_years", 15),
     ("goal_comfort", "hold"),
     ("agent_messages", []),
+    ("goal_chat_messages", []),
     ("goal_claude_summary", None),
     ("goal_claude_source", None),
 ]:
@@ -139,248 +131,357 @@ def get_goal_profile() -> dict[str, Any] | None:
         return None
 
 
-def page_tax_planning() -> None:
-    """U.S. tax education tab — no login; no persistence."""
-    st.title("Tax Planning for Your Portfolio")
-    st.caption("Understand possible tax impact before selling your stocks and mutual funds.")
-    st.warning(
-        "**Disclaimer:** Actual U.S. tax treatment depends on your filing status, income, "
-        "state taxes, account type, and personal situation. This page is a **simplified demo** "
-        "only—not legal or tax advice."
+
+def _inject_login_page_css() -> None:
+    st.markdown(
+        """
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+        header[data-testid="stHeader"] { display: none !important; }
+        div[data-testid="stToolbar"] { display: none !important; }
+        footer { visibility: hidden !important; height: 0 !important; }
+        .block-container {
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            max-width: 100% !important;
+        }
+        .main .block-container { padding-left: 0 !important; padding-right: 0 !important; }
+        [data-testid="stSidebar"] { display: none !important; }
+        [data-testid="collapsedControl"] { display: none !important; }
+        .gs-login-strip {
+            background: #f4f5f7;
+            padding: 36px 6vw 48px 6vw;
+            margin: 0;
+        }
+        .gs-member-card-title {
+            font-family: "Source Sans 3", system-ui, sans-serif;
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #64748b;
+            margin: 0 0 14px 0;
+            font-weight: 600;
+        }
+        .gs-login-hint {
+            font-family: "Source Sans 3", system-ui, sans-serif;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-top: 14px;
+            line-height: 1.45;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
 
-    with st.expander("Your profile (demo inputs — adjust brackets)", expanded=True):
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            annual_income = st.number_input(
-                "Annual income (approx.)",
-                min_value=0,
-                value=int(DEMO_USER_PROFILE["annual_income"]),
-                step=1000,
-                key="tax_annual",
-            )
-            taxable_income = st.number_input(
-                "Federal taxable income (approx.)",
-                min_value=0,
-                value=int(DEMO_USER_PROFILE["taxable_income"]),
-                step=1000,
-                key="tax_taxable",
-            )
-            filing_status = st.selectbox(
-                "Filing status",
-                FILING_STATUSES,
-                index=FILING_STATUSES.index(DEMO_USER_PROFILE["filing_status"]),
-                key="tax_filing",
-            )
-        with c2:
-            state = st.text_input(
-                "State (informational)", value=DEMO_USER_PROFILE["state"], key="tax_state"
-            )
-            age = st.number_input(
-                "Age", min_value=18, max_value=100, value=int(DEMO_USER_PROFILE["age"]), key="tax_age"
-            )
-            investment_goal = st.text_input(
-                "Investment goal",
-                value=DEMO_USER_PROFILE["investment_goal"],
-                key="tax_goal",
-            )
-        with c3:
-            horizon = st.number_input(
-                "Goal horizon (years)",
-                min_value=1,
-                max_value=60,
-                value=int(DEMO_USER_PROFILE["goal_time_horizon_years"]),
-                key="tax_horizon",
-            )
-            st.caption("No data is stored. Refresh resets widgets unless browser keeps state.")
 
-    profile: dict[str, Any] = {
-        "annual_income": annual_income,
-        "taxable_income": taxable_income,
-        "filing_status": filing_status,
-        "state": state,
-        "age": age,
-        "investment_goal": investment_goal,
-        "goal_time_horizon_years": horizon,
-    }
-
-    portfolio = DEMO_US_PORTFOLIO
-    summary = calculate_tax_summary(portfolio, profile)
-    opps = detect_tax_opportunities(portfolio, profile)
-
-    st.subheader("1. Tax Snapshot")
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric(
-        "Est. federal tax if sold today",
-        f"${summary['estimated_federal_tax_if_sold_today']:,.0f}",
-        help="Demo: tax on unrealized gains if everything were sold now, incl. simplified NIIT on gains when over threshold.",
+def _login_landing_hero_html() -> str:
+    """Goldman-style top bar + dark hero (educational clone — not affiliated)."""
+    hero_img = (
+        "https://images.unsplash.com/photo-1581092160562-40aa08f78845"
+        "?auto=format&fit=crop&w=2400&q=80"
     )
-    m2.metric("Total unrealized gains", f"${summary['total_unrealized_gains']:,.0f}")
-    m3.metric(
-        "Dividend income (annual, inputs)",
-        f"${summary['dividend_income']:,.0f}",
-        help="Sum of expected_dividend_income from the demo holdings; tax handled separately in modeling.",
-    )
-    m4.metric(
-        "Tax-loss harvesting potential (losses)",
-        f"${summary['tax_loss_harvesting_potential']:,.0f}",
-        help="Unrealized losses could sometimes offset gains; rules apply.",
-    )
-
-    st.subheader("2. Gain breakdown")
-    st.info(
-        "**Mutual funds:** Selling shares follows the same short-term vs long-term idea as stocks in this demo. "
-        "Mutual funds may also distribute taxable capital gains even if you do not sell shares—this prototype "
-        "estimates taxes mainly from **selling your holdings**."
-    )
-    tbl = []
-    for r in summary["holdings_detail"]:
-        hp = r["holding_period_days"]
-        hp_label = f"{hp} days (~{hp/365:.1f} yr)"
-        tbl.append(
-            {
-                "Holding": r["name"],
-                "Symbol": r["symbol"],
-                "Asset type": r["asset_type"],
-                "Invested": r["invested_value"],
-                "Current value": r["current_value"],
-                "Unrealized gain/loss": r["unrealized_gain_loss"],
-                "Holding period": hp_label,
-                "Gain type": r["gain_type"],
-                "Est. federal tax if sold now": r["estimated_federal_tax_if_sold_now"],
-            }
-        )
-    st.dataframe(pd.DataFrame(tbl), use_container_width=True, hide_index=True)
-
-    st.subheader("3. Tax opportunities")
-    pri_color = {"High": "🔴", "Medium": "🟠", "Low": "⚪"}
-    for o in opps:
-        with st.expander(f"{pri_color.get(o['priority'], '•')} **{o['title']}** — {o['priority']} priority"):
-            st.markdown(f"**What it means:** {o['explanation']}")
-            st.markdown(f"**In plain English:** {o['beginner_translation']}")
-            st.markdown(f"**You may want to:** {o['possible_action']}")
-            st.caption(o["estimated_impact"])
-
-    st.subheader("4. Scenario analysis")
-    c1, c2 = st.columns(2)
-    with c1:
-        sell_pct = st.slider("Percent of portfolio to sell (by value)", 0, 100, 25, key="tax_sell_pct")
-    with c2:
-        strategy = st.selectbox(
-            "Sell strategy",
-            [
-                "Sell proportionally",
-                "Sell loss-making holdings first",
-                "Sell long-term holdings first",
-                "Sell high-risk holdings first",
-            ],
-            key="tax_strategy",
-        )
-    sim = simulate_sale_scenario(portfolio, profile, sell_pct, strategy)
-    st.metric("Amount sold (demo)", f"${sim['amount_sold']:,.0f}")
-    c3, c4, c5 = st.columns(3)
-    c3.metric("Realized gain/loss (approx.)", f"${sim['realized_gain_loss']:,.0f}")
-    c4.metric("Estimated federal tax (demo)", f"${sim['estimated_federal_tax']:,.0f}")
-    st.write(sim["explanation"])
-    if sim["holdings_affected"]:
-        st.write("**Holdings affected (demo)**")
-        for line in sim["holdings_affected"]:
-            st.write(f"- {line}")
-
-    st.subheader("5. Explain like I’m new")
-    with st.expander("What is unrealized gain?"):
-        st.write(
-            "An **unrealized gain** is the profit you would have if you sold today, compared with what you paid, "
-            "but you have not sold yet—so the IRS usually has not taxed it as a capital gain. "
-            "It can go up or down with the market. "
-            "This demo uses your quantity × price to estimate it."
-        )
-    with st.expander("What is short-term capital gain?"):
-        st.write(
-            "For this demo, if you held a stock or mutual fund **one year or less**, a gain is treated as **short-term**. "
-            "Short-term gains are generally taxed like ordinary income at federal level in simplified modeling. "
-            "Rates depend on your bracket. "
-            "Always confirm with a tax professional."
-        )
-    with st.expander("What is long-term capital gain?"):
-        st.write(
-            "If you held **more than one year**, a gain may be **long-term** in this demo. "
-            "Federal long-term rates are often **0%, 15%, or 20%** depending on taxable income (simplified tables here). "
-            "That can be lower than ordinary rates for many people. "
-            "Rules have exceptions—this is educational only."
-        )
-    with st.expander("What is tax-loss harvesting?"):
-        st.write(
-            "**Tax-loss harvesting** means realizing losses on purpose to offset realized gains, within IRS rules. "
-            "If losses exceed gains, you might use a limited amount against ordinary income and carry forward the rest. "
-            "Wash sale rules can block the loss if you rebuy too soon. "
-            "Consider a CPA before relying on this strategy."
-        )
-    with st.expander("What is a wash sale?"):
-        st.write(
-            "A **wash sale** can happen if you sell at a loss and buy the **same or substantially identical** "
-            "investment within **30 days before or after** the sale. "
-            "The loss may be disallowed for current-year taxes. "
-            "Beginners should be careful around repurchasing the same ticker quickly. "
-            "This is a simplified reminder, not a complete rule list."
-        )
-    with st.expander("What is dividend tax?"):
-        st.write(
-            "**Qualified dividends** are often taxed like long-term gains in simplified modeling. "
-            "**Non-qualified** dividends are often taxed at ordinary rates. "
-            "Funds and stocks may pay dividends even if you do not sell. "
-            "Your broker statements help sort the types."
-        )
-    with st.expander("Why can selling investments create taxes?"):
-        st.write(
-            "When you sell for more than your **cost basis** (roughly what you paid), you may have a **realized gain** "
-            "that can be taxable. "
-            "Selling at a loss may create a realized loss that might help offset gains, with limits. "
-            "Dividends and fund distributions can also create tax without a sale. "
-            "Account type (taxable vs retirement) matters a lot—this demo assumes a **taxable** mindset."
-
-        )
-
-    st.subheader("6. Simple tax plan")
-    plan_lines = generate_simple_tax_plan(portfolio, profile)
-    for i, line in enumerate(plan_lines, 1):
-        st.write(f"{i}. {line}")
-    copy_text = "\n".join(f"{i}. {line}" for i, line in enumerate(plan_lines, 1))
-    copy_text += (
-        "\n\n---\nActual U.S. tax treatment depends on your filing status, income, state taxes, "
-        "account type, and personal situation."
-    )
-    st.text_area("Copy-friendly summary", value=copy_text, height=220, key="tax_copy_area")
+    return f"""
+<div class="gs-landing-root" style="margin:0;font-family:'Source Sans 3',system-ui,sans-serif;">
+  <nav class="gs-topbar" style="
+      display:flex;align-items:center;justify-content:space-between;
+      flex-wrap:wrap;gap:12px 24px;
+      padding:14px 6vw;
+      background:#a2b9d6;
+      border-bottom:1px solid rgba(26,43,75,0.08);
+  ">
+    <div style="display:flex;align-items:center;gap:40px;flex-wrap:wrap;">
+      <span style="font-family:'Libre Baskerville',Georgia,serif;font-size:1.35rem;font-weight:700;color:#0f172a;letter-spacing:-0.02em;">
+        AIChemist
+      </span>
+      <div style="display:flex;gap:28px;font-size:0.88rem;color:#1e293b;font-weight:600;">
+        <span>Portfolio</span>
+        <span>Agent</span>
+        <span>Rebalance</span>
+        <span>Insights</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px;">
+      <span style="font-size:0.82rem;color:#475569;">Demo</span>
+      <span style="
+        display:inline-block;padding:8px 18px;
+        border:1px solid #0f172a;color:#0f172a;
+        font-size:0.82rem;font-weight:600;
+        background:transparent;border-radius:2px;
+      ">Member sign-in</span>
+    </div>
+  </nav>
+  <section class="gs-hero" style="
+      position:relative;
+      min-height:58vh;
+      padding:56px 6vw 72px 6vw;
+      background:
+        linear-gradient(100deg, rgba(15,23,42,0.94) 0%, rgba(15,23,42,0.72) 42%, rgba(30,41,59,0.45) 100%),
+        url('{hero_img}') center/cover no-repeat;
+      display:flex;align-items:flex-end;
+  ">
+    <div style="position:relative;z-index:2;max-width:min(640px,92vw);">
+      <h1 style="
+        font-family:'Libre Baskerville',Georgia,serif;
+        font-size:clamp(1.75rem, 4vw, 2.65rem);
+        font-weight:700;line-height:1.2;color:#fff;margin:0 0 20px 0;
+        letter-spacing:-0.02em;
+      ">
+        Navigate markets, goals, and portfolio decisions with clarity
+      </h1>
+      <p style="
+        font-family:'Source Sans 3',system-ui,sans-serif;
+        font-size:1.05rem;line-height:1.6;color:rgba(255,255,255,0.88);
+        margin:0 0 28px 0;max-width:540px;
+      ">
+        Educational tools for stocks and mutual funds — AI chat with guardrails, goal coaching, and rebalance simulations.
+        Not investment advice.
+      </p>
+      <div style="
+        display:inline-block;padding:12px 26px;
+        background:#fff;color:#0f172a;
+        font-size:0.9rem;font-weight:700;
+        letter-spacing:0.04em;border-radius:2px;
+      ">
+        EXPLORE WORKSPACE
+      </div>
+    </div>
+    <div aria-hidden="true" style="
+      position:absolute;right:4vw;top:50%;transform:translateY(-50%);
+      font-family:'Libre Baskerville',Georgia,serif;
+      font-size:clamp(4rem, 18vw, 10rem);
+      font-weight:700;color:rgba(255,255,255,0.07);
+      line-height:0.85;user-select:none;
+    ">AI</div>
+  </section>
+</div>
+"""
 
 
 def login_screen() -> None:
-    st.title("AIChemist")
-    st.caption("Educational simulation — not financial advice.")
-    u = st.text_input("Username", key="login_u")
-    p = st.text_input("Password", type="password", key="login_p")
-    if st.button("Log in", type="primary"):
-        if u.strip().lower() == "admin" and p == "admin":
-            st.session_state.logged_in = True
-            st.rerun()
-        else:
-            st.error("Use username **admin** and password **admin** for this demo.")
+    """Full first-page sign-in — entire app is gated until this succeeds."""
+    _inject_login_page_css()
+    st.markdown(_login_landing_hero_html(), unsafe_allow_html=True)
+
+    st.markdown('<div class="gs-login-strip">', unsafe_allow_html=True)
+    c_left, c_right = st.columns([1.35, 1.0], gap="large")
+    with c_left:
+        st.markdown(
+            """
+            <p style="font-family:'Source Sans 3',system-ui,sans-serif;font-size:1rem;line-height:1.65;
+            color:#334155;max-width:520px;margin:8px 0 0 0;">
+            <strong style="color:#1e293b;">What you get after sign-in</strong><br/>
+            Portfolio-style metrics, what-if chat with guardrails, goal coaching,
+            and AI rebalance simulations — built for learning, not live trading.
+            </p>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c_right:
+        st.markdown(
+            '<p class="gs-member-card-title">Member access</p>',
+            unsafe_allow_html=True,
+        )
+        with st.container(border=True):
+            with st.form("login_form", clear_on_submit=False):
+                u = st.text_input("Username", key="login_u", placeholder="Username")
+                p = st.text_input("Password", type="password", key="login_p", placeholder="Password")
+                submitted = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+                if submitted:
+                    if u.strip().lower() == "admin" and p == "admin":
+                        st.session_state.logged_in = True
+                        st.rerun()
+                    else:
+                        st.error("Demo account: **admin** / **admin**.")
+            st.markdown(
+                '<p class="gs-login-hint">Educational simulation only — not financial or tax advice.</p>',
+                unsafe_allow_html=True,
+            )
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def page_portfolio() -> None:
-    st.header("Portfolio")
-    st.write("Illustrative dashboard — same spirit as the web demo.")
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Current value (demo)", "₹1.68 L")
-    c2.metric("1 day change", "₹-1,529", delta="-0.9%")
-    c3.metric("All-time return (demo)", "+₹36,239", delta="8.7% p.a.")
-    chart = pd.DataFrame(
-        {
-            "Month": pd.date_range("2021-01-01", periods=24, freq="ME"),
-            "Value": [42 + i * 2.1 + (i % 3) for i in range(24)],
-        }
+    from streamlit_portfolio_ui import (
+        chart_donut,
+        chart_lt_st,
+        chart_performance,
+        chart_transactions,
+        inject_portfolio_dashboard_css,
     )
-    st.subheader("Performance (sample)")
-    st.line_chart(chart.set_index("Month"))
+    from utils.portfolio_demo_metrics import (
+        allocation_by_asset,
+        allocation_by_investment_type,
+        filter_performance,
+        performance_monthly,
+        returns_by_type,
+        snapshot,
+        transactions_annual,
+    )
+
+    inject_portfolio_dashboard_css()
+    snap = snapshot()
+    invested = snap["invested"]
+    current = snap["current"]
+    day = snap["one_day_change"]
+    day_pct = snap["one_day_pct"]
+    gain = snap["all_time_gain"]
+    cagr = snap["cagr_pct"]
+    day_cls = "pf-neg" if day < 0 else "pf-pos"
+    gain_cls = "pf-pos" if gain >= 0 else "pf-neg"
+
+    st.markdown(
+        f"""
+        <div class="pf-wrap">
+        <h1 style="font-family:Georgia,serif;color:#1a2b4b;font-size:2rem;margin:0 0 8px 0;">Portfolio</h1>
+        <p class="pf-sub">U.S. demo holdings (stocks + mutual funds), USD — illustrative metrics only.</p>
+        <div class="pf-metric-row">
+          <div class="pf-metric-block">
+            <div class="pf-metric-label">Current value</div>
+            <div class="pf-metric-main">${current:,.0f}</div>
+            <div class="pf-metric-side">${invested:,.0f} invested</div>
+          </div>
+          <div class="pf-metric-block">
+            <div class="pf-metric-label">1 day</div>
+            <div class="pf-metric-main {day_cls}">${day:,.0f} &nbsp; ({day_pct:+.2f}%)</div>
+            <div class="pf-metric-side">Demo move — not live quotes</div>
+          </div>
+          <div class="pf-metric-block">
+            <div class="pf-metric-label">All-time returns</div>
+            <div class="pf-metric-main {gain_cls}">${gain:+,.0f}</div>
+            <div class="pf-metric-side {gain_cls}">{cagr:.1f}% p.a. (demo CAGR)</div>
+          </div>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    perf_full = performance_monthly()
+    range_options = ["ALL", "YTD", "1M", "3M", "6M", "1Y", "3Y", "5Y"]
+    col_left, col_right = st.columns([1.2, 1.0])
+
+    with col_left:
+        with st.container(border=True):
+            st.markdown('<p class="pf-serif">Performance</p>', unsafe_allow_html=True)
+            if hasattr(st, "segmented_control"):
+                sel_range = st.segmented_control(
+                    "Range",
+                    range_options,
+                    default="ALL",
+                    key="pf_perf_range",
+                    label_visibility="collapsed",
+                )
+            else:
+                sel_range = st.selectbox("Range", range_options, index=0, key="pf_perf_range_sb")
+            perf_df = filter_performance(perf_full, sel_range)
+            st.plotly_chart(chart_performance(perf_df), use_container_width=True)
+            st.markdown(
+                '<p class="pf-footlink">See performance details — explore scenarios in AI Rebalance →</p>',
+                unsafe_allow_html=True,
+            )
+
+    with col_right:
+        with st.container(border=True):
+            st.markdown('<p class="pf-serif">Allocation</p>', unsafe_allow_html=True)
+            alloc_mode = st.radio(
+                "View",
+                ["By asset", "By investment type"],
+                horizontal=True,
+                key="pf_alloc_mode",
+                label_visibility="collapsed",
+            )
+            if alloc_mode == "By asset":
+                adf = allocation_by_asset()
+                labels = adf["label"].tolist()
+                values = adf["value"].tolist()
+            else:
+                adf = allocation_by_investment_type()
+                labels = adf["label"].tolist()
+                values = adf["value"].tolist()
+            st.plotly_chart(chart_donut(labels, values, title=None), use_container_width=True)
+            st.markdown(
+                '<p class="pf-footlink">See detailed breakdown — same demo holdings as portfolio metrics</p>',
+                unsafe_allow_html=True,
+            )
+
+    t1, t2, t3 = st.columns(3)
+
+    with t1:
+        with st.container(border=True):
+            st.markdown('<p class="pf-serif">Transactions</p>', unsafe_allow_html=True)
+            st.markdown(
+                '<p class="pf-sub" style="margin-top:-8px;">Amount invested annually, net of withdrawals (demo)</p>',
+                unsafe_allow_html=True,
+            )
+            tx = transactions_annual()
+            st.plotly_chart(chart_transactions(tx), use_container_width=True)
+            st.markdown(
+                '<p class="pf-footlink">See all transactions — not available in this prototype</p>',
+                unsafe_allow_html=True,
+            )
+
+    with t2:
+        with st.container(border=True):
+            st.markdown('<p class="pf-serif">Unrealized gains context</p>', unsafe_allow_html=True)
+            ty = snap["as_of"].year
+            st.markdown(
+                f'<p class="pf-sub" style="margin-top:-8px;">CY {ty}: unrealized buckets (educational)</p>',
+                unsafe_allow_html=True,
+            )
+            st.plotly_chart(
+                chart_lt_st(snap["lt_unrealized_pl"], snap["st_unrealized_pl"], f"CY {ty}"),
+                use_container_width=True,
+            )
+            st.caption(
+                "Bars show **unrealized** long-term vs short-term P/L on holdings (educational split only)."
+            )
+            st.markdown(
+                '<p class="pf-footlink">For practice moves, try AI Rebalance</p>',
+                unsafe_allow_html=True,
+            )
+
+    with t3:
+        with st.container(border=True):
+            st.markdown('<p class="pf-serif">Returns by investment type</p>', unsafe_allow_html=True)
+            dur = st.selectbox(
+                "Duration",
+                ["1 Day", "1 Week", "1 Month", "3 Month", "YTD"],
+                index=0,
+                key="pf_ret_dur",
+                label_visibility="collapsed",
+            )
+            st.caption(f"Window: **{dur}** (illustrative move on demo weights)")
+            for row in returns_by_type(dur):
+                if row["in_portfolio"]:
+                    chg = float(row["change"] or 0)
+                    pct = float(row["pct"] or 0)
+                    cls = "pf-neg" if chg < 0 else "pf-pos"
+                    st.markdown(
+                        f'<p style="margin:12px 0 4px 0;font-weight:600;color:#1a2b4b;">{row["name"]}</p>'
+                        f'<p class="{cls}" style="margin:0;font-size:1.05rem;">'
+                        f"${chg:,.0f} ({pct:+.2f}%) </p>"
+                        f'<p style="margin:4px 0 0 0;font-size:0.82rem;color:#64748b;">'
+                        f'Value ~ ${float(row["value"]):,.0f}</p>',
+                        unsafe_allow_html=True,
+                    )
+                else:
+                    st.markdown(
+                        f'<p style="margin:14px 0 4px 0;font-weight:600;color:#1a2b4b;">{row["name"]}</p>'
+                        f'<p style="margin:0;color:#94a3b8;font-size:0.9rem;">Not in this demo portfolio</p>',
+                        unsafe_allow_html=True,
+                    )
+
+    st.markdown(
+        """
+        <div class="pf-wrap pf-disclaimer">
+        Illustrative data only — not financial, tax, or investment advice. Figures are tied to the hardcoded
+        demo portfolio, include synthetic performance history and contributions, and are not live market prices.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _guardrail_bullets() -> str:
@@ -396,8 +497,172 @@ def _greeting_bullets() -> str:
         "- Ask any **what-if** about investing in plain words.\n"
         "- Answers show as **bullet points** so they’re easy to scan.\n"
         "- For a full practice rebalance, open **AI Rebalance**.\n"
-        "- Switch to **Guided goal-setting** for a short questionnaire + AI summary."
+        "- Switch to **Goal coach (chat)** for a short questionnaire + summary."
     )
+
+
+def _inject_gs_workspace_css() -> None:
+    """Goldman-style steel-blue sidebar + institutional grays (logged-in shell)."""
+    st.markdown(
+        """
+        <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+        <style>
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #a2b9d6 0%, #98b0cd 100%) !important;
+            border-right: 1px solid rgba(26, 26, 26, 0.12) !important;
+        }
+        [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label,
+        [data-testid="stSidebar"] .stMarkdown { color: #1a1a1a !important; }
+        [data-testid="stSidebar"] .stRadio label { font-weight: 600 !important; font-family: 'Source Sans 3', system-ui, sans-serif !important; }
+        [data-testid="stSidebar"] button {
+            border: 1px solid #1a1a1a !important;
+            color: #1a1a1a !important;
+            background: rgba(255,255,255,0.35) !important;
+        }
+        .main .block-container {
+            font-family: 'Source Sans 3', system-ui, sans-serif !important;
+            background: #f0f2f5 !important;
+        }
+        h1, h2, h3 { font-family: 'Libre Baskerville', Georgia, serif !important; color: #1a1a1a !important; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _inject_gs_messaging_css() -> None:
+    """Chat + tabs on Agent page — same palette as GS header (#a2b9d6) and navy text."""
+    st.markdown(
+        """
+        <style>
+        .goal-coach-frame {
+            max-width: 760px;
+            margin: 0 auto;
+            padding: 0 8px 12px 8px;
+        }
+        .goal-coach-frame [data-testid="stVerticalBlock"] > div { gap: 0.35rem; }
+        .goal-composer {
+            max-width: 760px;
+            margin: 12px auto 0 auto;
+            padding: 14px 16px;
+            background: #ffffff;
+            border: 1px solid #a2b9d6;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(26, 26, 26, 0.06);
+        }
+        .goal-coach-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        [data-testid="stChatMessage"] {
+            background-color: #ffffff !important;
+            border: 1px solid #c5d4e8 !important;
+            border-radius: 14px !important;
+            box-shadow: 0 1px 4px rgba(162, 185, 214, 0.35) !important;
+        }
+        [data-testid="stChatInput"] textarea {
+            border: 1px solid #a2b9d6 !important;
+            border-radius: 10px !important;
+            font-family: 'Source Sans 3', system-ui, sans-serif !important;
+        }
+        [data-testid="stTabs"] [aria-selected="true"] {
+            color: #1a1a1a !important;
+            font-weight: 700 !important;
+            border-bottom-color: #1a1a1a !important;
+        }
+        [data-testid="stTabs"] button { font-family: 'Source Sans 3', system-ui, sans-serif !important; color: #4a5568 !important; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+GOAL_COACH_WELCOME = (
+    "Hi — I’m your **Goal coach**.\n\n"
+    "I’ll ask **three short questions** about what you’re investing for, your **time horizon**, and how you’d react "
+    "if markets got rough. Then I’ll give you a **plain-English summary** (bullet points).\n\n"
+    "This is **educational only** — not personal financial advice.\n\n"
+    "When you’re ready, tap **Start conversation** below or type **begin** in the message box."
+)
+
+
+def _goal_chat_guardrail() -> str:
+    return (
+        "- I stay in **money and goal** territory — investing, saving, risk, and time horizon.\n"
+        "- I can’t help with general chit-chat, coding, recipes, or unrelated topics here.\n"
+        "- Try: *begin* to start the questionnaire, or open **What-if chat** for market “what if” questions.\n"
+        "- Everything here is **educational**, not a recommendation to buy or sell anything."
+    )
+
+
+def _goal_chat_finish_questionnaire_hint() -> str:
+    return (
+        "- I’m in the middle of your **goal questionnaire** — use the **options and buttons** just above to continue.\n"
+        "- After your summary, you can ask follow-ups here (still **money topics only**).\n"
+        "- For open-ended “what if” questions, **What-if chat** works great too."
+    )
+
+
+def _goal_step0_ack(text: str) -> bool:
+    t = text.lower().strip()
+    if t in ("begin", "start", "go", "ok", "yes", "y", "let's go", "lets go"):
+        return True
+    if re.match(r"^(hi|hello|hey)\b", t) and len(t) < 32:
+        return True
+    return False
+
+
+def _goal_begin_conversation() -> None:
+    st.session_state.goal_chat_messages.append(("user", "Let’s start the goal questionnaire."))
+    st.session_state.goal_chat_messages.append(
+        (
+            "assistant",
+            "**Question 1 of 3:** What is **this money mainly for**?\n\n"
+            "Choose one option below, then tap **Next**.",
+        )
+    )
+    st.session_state.goal_step = 1
+
+
+def _goal_append_user_assistant(user_text: str, assistant_text: str) -> None:
+    st.session_state.goal_chat_messages.append(("user", user_text))
+    st.session_state.goal_chat_messages.append(("assistant", assistant_text))
+
+
+def _goal_followup_reply(user_text: str) -> None:
+    """After summary: money-only follow-ups using same guardrails as what-if."""
+    prior = [
+        (r, c)
+        for r, c in st.session_state.goal_chat_messages[:-1]
+        if r in ("user", "assistant")
+    ]
+    if OFF_TOPIC_RE.search(user_text) or (
+        len(user_text.strip()) > 2 and not FINANCIAL_RE.search(user_text)
+    ):
+        st.session_state.goal_chat_messages.append(("assistant", _goal_chat_guardrail()))
+        return
+    if re.match(r"^(hi|hello|hey)\b", user_text, re.I) and len(user_text) < 40:
+        st.session_state.goal_chat_messages.append(
+            (
+                "assistant",
+                "- You’ve finished the goal questionnaire — nice work.\n"
+                "- Ask a **what-if** about markets, inflation, or withdrawals in plain words.\n"
+                "- I’ll answer in **bullet points** so it’s easy to scan.\n"
+                "- Or switch to **What-if chat** for the same style without the goal recap.",
+            )
+        )
+        return
+    key = get_api_key()
+    sync_anthropic_env_from_secrets()
+    reply, _src = whatif_reply(key, user_text, prior)
+    st.session_state.goal_chat_messages.append(("assistant", reply))
 
 
 def _append_whatif_response(user_text: str, prior_history: list[tuple[str, str]]) -> None:
@@ -420,47 +685,77 @@ def _append_whatif_response(user_text: str, prior_history: list[tuple[str, str]]
     st.session_state["_last_whatif_source"] = src
 
 
+def _goal_chat_pop_last_turn() -> None:
+    for _ in range(2):
+        if st.session_state.goal_chat_messages:
+            st.session_state.goal_chat_messages.pop()
+
+
 def render_guided_goal_setting() -> None:
-    """Wizard + Claude bullet summary (second tab on Agent page)."""
-    st.subheader("Guided goal-setting")
-    st.write("A few questions — then an **AI summary in bullet points** (Claude when configured).")
+    """ChatGPT-style goal coach with financial guardrails (Agent tab)."""
+    if not st.session_state.goal_chat_messages:
+        st.session_state.goal_chat_messages = [("assistant", GOAL_COACH_WELCOME)]
+
+    goal_labels = {
+        "retirement": "Long-term / retirement",
+        "home": "A large purchase",
+        "emergency": "Safety net / emergency",
+        "growth": "General long-term growth",
+    }
+    comfort_labels = {
+        "sell": "Move mostly to safer options — sleep matters most.",
+        "hold": "Hold steady and stick to the plan.",
+        "buy": "Try to add a little if I can — I accept more bumpiness.",
+    }
+
+    st.markdown('<div class="goal-coach-frame">', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="goal-coach-badge">Goal coach · Educational only</div>',
+        unsafe_allow_html=True,
+    )
+    st.caption("Chat-style flow with **money-only** guardrails — like a focused research assistant for goals.")
+
+    for role, content in st.session_state.goal_chat_messages:
+        with st.chat_message(role):
+            st.markdown(content)
 
     step = st.session_state.goal_step
+
+    st.markdown('<div class="goal-composer">', unsafe_allow_html=True)
     if step == 0:
-        st.write("We clarify **when** you need money and **how bumpy** a ride you can handle.")
-        if st.button("Begin", key="g_begin"):
-            st.session_state.goal_step = 1
+        if st.button("Start conversation", type="primary", key="g_begin"):
             st.session_state.goal_claude_summary = None
             st.session_state.goal_claude_source = None
+            _goal_begin_conversation()
             st.rerun()
-        return
 
-    if step == 1:
-        goal_labels = {
-            "retirement": "Long-term / retirement",
-            "home": "A large purchase",
-            "emergency": "Safety net / emergency",
-            "growth": "General long-term growth",
-        }
+    elif step == 1:
         st.session_state.goal_main = st.radio(
-            "What is this money mainly for?",
+            "Your answer",
             list(goal_labels.keys()),
             format_func=lambda k: goal_labels[k],
             horizontal=False,
             key="g_main",
+            label_visibility="visible",
         )
         col1, col2 = st.columns(2)
         if col1.button("Back", key="g_b1"):
+            _goal_chat_pop_last_turn()
             st.session_state.goal_step = 0
             st.rerun()
         if col2.button("Next", key="g_n1"):
+            lbl = goal_labels[st.session_state.goal_main]
+            _goal_append_user_assistant(
+                f"I’m mainly investing for: **{lbl}**.",
+                "**Question 2 of 3:** Roughly **when** will you need most of this money?\n\n"
+                "Set the **years** on the slider, then tap **Next**.",
+            )
             st.session_state.goal_step = 2
             st.rerun()
-        return
 
-    if step == 2:
+    elif step == 2:
         years = st.slider(
-            "Roughly when will you need most of this money? (years)",
+            "Years until you need most of this money",
             1,
             40,
             st.session_state.goal_years,
@@ -469,27 +764,30 @@ def render_guided_goal_setting() -> None:
         st.session_state.goal_years = years
         col1, col2 = st.columns(2)
         if col1.button("Back", key="g_b2"):
+            _goal_chat_pop_last_turn()
             st.session_state.goal_step = 1
             st.rerun()
         if col2.button("Next", key="g_n2"):
+            y = st.session_state.goal_years
+            _goal_append_user_assistant(
+                f"I’m thinking about a horizon of about **{y} years**.",
+                "**Question 3 of 3:** If your portfolio dropped about **20%** in a tough year, what would you lean toward?\n\n"
+                "Choose an option, then tap **Get my summary**.",
+            )
             st.session_state.goal_step = 3
             st.rerun()
-        return
 
-    if step == 3:
-        comfort_labels = {
-            "sell": "Move mostly to safer options — sleep matters most.",
-            "hold": "Hold steady and stick to the plan.",
-            "buy": "Try to add a little if I can — I accept more bumpiness.",
-        }
+    elif step == 3:
         st.session_state.goal_comfort = st.radio(
-            "If your portfolio dropped about 20% in a tough year, you would…",
+            "Your reaction if markets dropped ~20%",
             list(comfort_labels.keys()),
             format_func=lambda k: comfort_labels[k],
             key="g_comfort",
+            label_visibility="visible",
         )
         col1, col2 = st.columns(2)
         if col1.button("Back", key="g_b3"):
+            _goal_chat_pop_last_turn()
             st.session_state.goal_step = 2
             st.rerun()
         if col2.button("Get my summary", type="primary", key="g_save"):
@@ -501,6 +799,13 @@ def render_guided_goal_setting() -> None:
                 "comfort": c,
                 "riskLabel": risk,
             }
+            main_lbl = goal_labels[st.session_state.goal_main]
+            comfort_lbl = comfort_labels[c]
+            y = st.session_state.goal_years
+            user_recap = (
+                f"**My answers:** Goal — {main_lbl}; horizon — **{y} years**; "
+                f"if the market dropped ~20% — *{comfort_lbl}*"
+            )
             st.session_state.goal_saved = json.dumps(profile)
             sync_anthropic_env_from_secrets()
             key = get_api_key()
@@ -508,23 +813,78 @@ def render_guided_goal_setting() -> None:
                 summary, src = goal_coach_reply(key, profile)
             st.session_state.goal_claude_summary = summary
             st.session_state.goal_claude_source = src
+            st.session_state.goal_chat_messages.append(("user", user_recap))
+            st.session_state.goal_chat_messages.append(
+                (
+                    "assistant",
+                    "Here’s your **Goal coach summary** (bullets):\n\n" + summary,
+                )
+            )
             st.session_state.goal_step = 4
             st.rerun()
-        return
 
-    st.success("Here’s your saved profile and AI summary.")
-    st.json(json.loads(st.session_state.goal_saved))
-    src = st.session_state.get("goal_claude_source") or "fallback"
-    st.caption(f"Summary source: **{'Claude API' if src == 'claude' else 'Built-in template'}**")
-    st.markdown(st.session_state.get("goal_claude_summary") or "")
-    if st.button("Start over", key="g_reset"):
-        st.session_state.goal_step = 0
-        st.session_state.goal_claude_summary = None
-        st.session_state.goal_claude_source = None
+    else:
+        st.success("Profile saved — scroll up to see the full chat, or ask a follow-up below.")
+        with st.expander("View saved profile (JSON)"):
+            st.json(json.loads(st.session_state.goal_saved))
+        src = st.session_state.get("goal_claude_source") or "fallback"
+        st.caption(f"Summary source: **{'Claude API' if src == 'claude' else 'Built-in template'}**")
+        if st.button("Start over", key="g_reset"):
+            st.session_state.goal_step = 0
+            st.session_state.goal_claude_summary = None
+            st.session_state.goal_claude_source = None
+            st.session_state.goal_chat_messages = [("assistant", GOAL_COACH_WELCOME)]
+            st.rerun()
+
+    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    chat_placeholder = (
+        "Message Goal coach…"
+        if st.session_state.goal_step < 4
+        else "Follow up (money topics only)…"
+    )
+    if prompt := st.chat_input(chat_placeholder, key="goal_chat_input"):
+        p = prompt.strip()
+        if not p:
+            st.rerun()
+        st.session_state.goal_chat_messages.append(("user", p))
+        if st.session_state.goal_step == 0:
+            if _goal_step0_ack(p):
+                st.session_state.goal_claude_summary = None
+                st.session_state.goal_claude_source = None
+                st.session_state.goal_chat_messages.append(
+                    (
+                        "assistant",
+                        "**Question 1 of 3:** What is **this money mainly for**?\n\n"
+                        "Choose one option below, then tap **Next**.",
+                    )
+                )
+                st.session_state.goal_step = 1
+            else:
+                if OFF_TOPIC_RE.search(p) or (len(p) > 2 and not FINANCIAL_RE.search(p)):
+                    st.session_state.goal_chat_messages.append(("assistant", _goal_chat_guardrail()))
+                else:
+                    st.session_state.goal_chat_messages.append(
+                        (
+                            "assistant",
+                            "Thanks! When you’re ready to begin the questionnaire, type **begin** or tap **Start conversation**.",
+                        )
+                    )
+        elif st.session_state.goal_step < 4:
+            if OFF_TOPIC_RE.search(p) or (len(p) > 2 and not FINANCIAL_RE.search(p)):
+                st.session_state.goal_chat_messages.append(("assistant", _goal_chat_guardrail()))
+            else:
+                st.session_state.goal_chat_messages.append(
+                    ("assistant", _goal_chat_finish_questionnaire_hint())
+                )
+        else:
+            _goal_followup_reply(p)
         st.rerun()
 
 
 def page_agent() -> None:
+    _inject_gs_messaging_css()
     st.header("Agent")
     st.caption(
         "Both areas use the **Claude API** when `ANTHROPIC_API_KEY` is set in Streamlit secrets; "
@@ -532,7 +892,7 @@ def page_agent() -> None:
     )
     sync_anthropic_env_from_secrets()
 
-    tab_chat, tab_goals = st.tabs(["What-if chat", "Guided goal-setting"])
+    tab_chat, tab_goals = st.tabs(["What-if chat", "Goal coach (chat)"])
 
     with tab_chat:
         st.subheader("What-if chat")
@@ -718,33 +1078,25 @@ def page_rebalance() -> None:
 
 
 def main() -> None:
-    with st.sidebar:
-        st.markdown("### Workspace")
-        page = st.radio(
-            "Navigate",
-            ["Tax Planning", "Portfolio", "Agent", "AI Rebalance"],
-            label_visibility="collapsed",
-        )
-        st.divider()
-        if page == "Tax Planning":
-            st.caption("Tax Planning needs **no login**.")
-        elif st.session_state.logged_in:
-            if st.button("Log out"):
-                st.session_state.logged_in = False
-                st.rerun()
-            st.caption("Demo login: admin / admin")
-        else:
-            st.caption("Log in with **admin** / **admin** for Portfolio, Agent, and AI Rebalance.")
-
-    if page == "Tax Planning":
-        page_tax_planning()
-        return
-
     if not st.session_state.logged_in:
         login_screen()
         return
 
+    with st.sidebar:
+        st.markdown("### Workspace")
+        page = st.radio(
+            "Navigate",
+            ["Portfolio", "Agent", "AI Rebalance"],
+            label_visibility="collapsed",
+        )
+        st.divider()
+        if st.button("Log out"):
+            st.session_state.logged_in = False
+            st.rerun()
+        st.caption("Signed in (demo: **admin** / **admin**).")
+
     sync_anthropic_env_from_secrets()
+    _inject_gs_workspace_css()
 
     if page == "Portfolio":
         page_portfolio()
