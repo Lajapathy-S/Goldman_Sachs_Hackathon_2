@@ -593,15 +593,15 @@ def _inject_gs_messaging_css() -> None:
             box-shadow: 0 1px 8px rgba(26, 26, 26, 0.05);
         }
         .goal-composer [data-testid="stButton"] > button {
-            background: #1e3a5f !important;
-            color: #ffffff !important;
-            border: 1px solid #1e3a5f !important;
+            background: #a7bdd9 !important;
+            color: #111111 !important;
+            border: 1px solid #8ea9cb !important;
             font-weight: 700 !important;
         }
         .goal-composer [data-testid="stButton"] > button:hover {
-            background: #15304f !important;
-            color: #ffffff !important;
-            border-color: #15304f !important;
+            background: #9fb5d1 !important;
+            color: #111111 !important;
+            border-color: #86a2c4 !important;
         }
         .goal-coach-badge {
             display: inline-flex;
