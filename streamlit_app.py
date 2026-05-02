@@ -377,6 +377,7 @@ def page_portfolio(portfolio_focus: str) -> None:
         chart_performance,
         chart_transactions,
         inject_portfolio_dashboard_css,
+        show_plotly_chart,
     )
     from utils.portfolio_demo_metrics import (
         allocation_by_focus,
@@ -450,7 +451,7 @@ def page_portfolio(portfolio_focus: str) -> None:
             else:
                 sel_range = st.selectbox("Range", range_options, index=0, key="pf_perf_range_sb")
             perf_df = filter_performance(perf_full, sel_range)
-            st.plotly_chart(chart_performance(perf_df), use_container_width=True)
+            show_plotly_chart(chart_performance(perf_df), key="pf_perf_chart")
             st.caption(
                 "Chart uses the **full** demo portfolio path; headline cards above match your **"
                 + title_suffix.lower()
@@ -468,7 +469,7 @@ def page_portfolio(portfolio_focus: str) -> None:
             adf = allocation_by_focus(focus_key)
             labels = adf["label"].tolist()
             values = adf["value"].tolist()
-            st.plotly_chart(chart_donut(labels, values, title=None), use_container_width=True)
+            show_plotly_chart(chart_donut(labels, values, title=None), key="pf_alloc_chart")
             st.markdown(
                 '<p class="pf-footlink">See detailed breakdown — same demo holdings as portfolio metrics</p>',
                 unsafe_allow_html=True,
@@ -484,7 +485,7 @@ def page_portfolio(portfolio_focus: str) -> None:
                 unsafe_allow_html=True,
             )
             tx = transactions_annual()
-            st.plotly_chart(chart_transactions(tx), use_container_width=True)
+            show_plotly_chart(chart_transactions(tx), key="pf_tx_chart")
             st.markdown(
                 '<p class="pf-footlink">See all transactions — not available in this prototype</p>',
                 unsafe_allow_html=True,
@@ -498,9 +499,9 @@ def page_portfolio(portfolio_focus: str) -> None:
                 f'<p class="pf-sub" style="margin-top:-8px;">CY {ty}: unrealized buckets (educational)</p>',
                 unsafe_allow_html=True,
             )
-            st.plotly_chart(
+            show_plotly_chart(
                 chart_lt_st(snap["lt_unrealized_pl"], snap["st_unrealized_pl"], f"CY {ty}"),
-                use_container_width=True,
+                key="pf_ltst_chart",
             )
             st.caption(
                 "Bars show **unrealized** long-term vs short-term P/L on holdings (educational split only)."

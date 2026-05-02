@@ -4,6 +4,19 @@ from __future__ import annotations
 
 import streamlit as st
 
+
+def show_plotly_chart(fig, *, key: str | None = None) -> None:
+    """Render Plotly: theme=None keeps our colors; explicit height avoids content-sized collapse."""
+    kwargs: dict = {
+        "use_container_width": True,
+        "theme": None,
+        "width": "stretch",
+        "height": 400,
+    }
+    if key is not None:
+        kwargs["key"] = key
+    st.plotly_chart(fig, **kwargs)
+
 NAVY = "#1a2b4b"
 BLUE = "#1e3a5f"
 ACCENT = "#2563eb"
@@ -47,6 +60,8 @@ def inject_portfolio_dashboard_css() -> None:
         f"""
         <style>
         .js-plotly-plot .plotly .main-svg {{ background: #ffffff !important; }}
+        [data-testid="stPlotlyChart"] {{ min-height: 320px; }}
+        iframe[title="plotly"] {{ min-height: 300px; }}
         .pf-wrap {{
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
             color: {NAVY};
@@ -137,20 +152,23 @@ def chart_performance(df, title: str = "Performance"):
             x=df["Month"],
             y=df["Value"],
             mode="lines",
-            line=dict(color=BLUE, width=2.5),
+            line=dict(color=BLUE, width=3),
             fill="tozeroy",
-            fillcolor="rgba(30, 58, 95, 0.08)",
+            fillcolor="rgba(30, 58, 95, 0.12)",
             name="Value",
+            hovertemplate="%{x|%b %Y}<br>$%{y:,.0f}<extra></extra>",
         )
     )
     fig.update_layout(
         title=dict(text=title, font=dict(size=18, color=NAVY, family="Georgia, serif")),
         margin=dict(l=16, r=16, t=48, b=16),
-        height=340,
+        height=380,
+        autosize=True,
         xaxis=dict(zeroline=False),
         yaxis=dict(
             tickprefix="$",
             tickformat=",.0f",
+            rangemode="tozero",
         ),
         showlegend=False,
     )
@@ -167,17 +185,19 @@ def chart_donut(labels: list[str], values: list[float], title: str | None = None
             go.Pie(
                 labels=labels,
                 values=values,
-                hole=0.62,
-                marker=dict(colors=colors[: len(labels)]),
+                hole=0.58,
+                marker=dict(colors=colors[: len(labels)], line=dict(color="#ffffff", width=2)),
                 textinfo="label+percent",
-                textposition="outside",
+                textposition="inside",
+                insidetextorientation="horizontal",
                 sort=False,
             )
         ]
     )
     layout = dict(
         margin=dict(l=16, r=16, t=24 if not title else 48, b=16),
-        height=340,
+        height=380,
+        autosize=True,
         showlegend=True,
         legend=dict(
             orientation="v",
@@ -215,7 +235,8 @@ def chart_transactions(df):
             font=dict(size=18, color=NAVY, family="Georgia, serif"),
         ),
         margin=dict(l=16, r=16, t=56, b=16),
-        height=320,
+        height=360,
+        autosize=True,
         xaxis=dict(title=""),
         yaxis=dict(title="", tickprefix="$", tickformat=",.0f"),
         showlegend=False,
@@ -246,7 +267,8 @@ def chart_lt_st(lt: float, st: float, tax_year_label: str):
             font=dict(size=18, color=NAVY, family="Georgia, serif"),
         ),
         margin=dict(l=16, r=48, t=56, b=16),
-        height=260,
+        height=320,
+        autosize=True,
         xaxis=dict(
             tickprefix="$",
             tickformat=",.0f",

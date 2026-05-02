@@ -8,6 +8,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from utils.tax_calculator import DEMO_US_PORTFOLIO, holding_metrics
@@ -95,16 +96,20 @@ def performance_monthly() -> pd.DataFrame:
     """Synthetic month-end values ending at modeled current value (educational)."""
     snap = snapshot()
     end = float(snap["current"])
-    start = float(snap["invested"]) * 0.92
-    months = pd.date_range("2021-01-01", AS_OF.isoformat(), freq="ME")
+    start = float(snap["invested"]) * 0.88
+    months = pd.date_range("2020-01-01", AS_OF.isoformat(), freq="ME")
     n = len(months)
     if n < 2:
         return pd.DataFrame({"Month": months, "Value": [end]})
-    # Smooth growth curve ending at `end`
-    t = pd.Series(range(n), dtype=float)
-    w = (t / (n - 1)) ** 1.15
-    vals = start + (end - start) * w
-    return pd.DataFrame({"Month": months, "Value": vals.values})
+    t = np.arange(n, dtype=float)
+    w = (t / (n - 1)) ** 1.12
+    base = start + (end - start) * w
+    # Mild oscillation so the line reads as a real equity curve in charts
+    ripple = 1.0 + 0.022 * np.sin(np.linspace(0, 5 * np.pi, n))
+    dip = 1.0 - 0.04 * np.exp(-0.5 * ((t - (n - 1) * 0.35) / max(n * 0.08, 1)) ** 2)
+    vals = base * ripple * dip
+    vals[-1] = end
+    return pd.DataFrame({"Month": months, "Value": vals})
 
 
 def filter_performance(df: pd.DataFrame, range_key: str) -> pd.DataFrame:
@@ -161,8 +166,8 @@ def transactions_annual() -> pd.DataFrame:
     """Illustrative net invested per calendar year (USD)."""
     return pd.DataFrame(
         {
-            "Year": ["2022", "2023", "2024", "2025", "2026 (YTD)"],
-            "Net invested": [8500, 9200, 10100, 9800, 2400],
+            "Year": ["2021", "2022", "2023", "2024", "2025", "2026 (YTD)"],
+            "Net invested": [6200, 11200, 12800, 14100, 13800, 5200],
         }
     )
 
