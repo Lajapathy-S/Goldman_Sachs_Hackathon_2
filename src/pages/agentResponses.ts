@@ -63,7 +63,7 @@ export const SCENARIO_PRESETS: { id: string; label: string; prompt: string; plan
   ]
 
 const FINANCIAL_PATTERN =
-  /\b(portfolio|rebalanc|market|stock|mutual|fund|invest|withdraw|inflation|bond|equity|risk|allocat|tax|scenario|what\s*if|drop|crash|yield|dividend|sip|etf|cash|retire|goal|macro|interest|recess|volatil|loss|gain|percent|%\s|apy|return|asset|diversif|bear|bull|correction|allocation|expense|capital\s*gain|harvest|income|savings|debt|credit|loan|mortgage|pension|401k|ira|nominee|sip|lumpsum|index|sector|crypto|gold|commod|forex|dollar|rupee|inr|fed|rbi|rate\s*hike)\b/i
+  /\b(portfolio|rebalanc|market|stock|stocks|shares?|mutual|fund|invest|withdraw|inflation|bond|equity|buy|sell|buying|selling|trade|trades|trading|risk|allocat|tax|scenario|what\s*if|drop|crash|yield|dividend|sip|etf|cash|retire|goal|macro|interest|recess|volatil|loss|gain|percent|%\s|apy|return|asset|diversif|bear|bull|correction|allocation|expense|capital\s*gain|harvest|income|savings|debt|credit|loan|mortgage|pension|401k|ira|nominee|sip|lumpsum|index|sector|crypto|gold|commod|forex|dollar|rupee|inr|fed|rbi|rate\s*hike)\b/i
 
 const OFF_TOPIC_PATTERN =
   /\b(recipe|cook|weather|joke|poem|python|javascript|code|debug|movie|netflix|game|fortnite|sports|football|cricket|celebr|dating|homework|essay|translate\s+to\s+french)\b/i

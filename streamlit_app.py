@@ -10,7 +10,7 @@ Secrets (Streamlit Cloud → App settings → Secrets):
 Optional:
   ANTHROPIC_MODEL = "claude-sonnet-4-6"
 
-Without a key, AI Rebalance uses the built-in simulation only.
+Without a key, REBA and Goal coach use built-in fallback replies.
 """
 
 from __future__ import annotations
@@ -24,7 +24,6 @@ import pandas as pd
 import streamlit as st
 
 from streamlit_claude_client import goal_coach_reply, whatif_reply
-from streamlit_rebalance import SCENARIO_PROMPTS, run_rebalance, sum_by_type
 
 st.set_page_config(
     page_title="AIChemist",
@@ -50,12 +49,13 @@ for k, v in [
         st.session_state[k] = v
 
 FINANCIAL_RE = re.compile(
-    r"\b(portfolio|rebalanc|market|stock|mutual|fund|invest|withdraw|inflation|bond|equity|"
+    r"\b(portfolio|rebalanc|market|stock|stocks|shares?|mutual|fund|invest|withdraw|inflation|bond|equity|"
+    r"\bbuy\b|\bsell\b|buying|selling|trade|trades|trader|"
     r"risk|allocat|tax|scenario|what\s*if|drop|crash|yield|dividend|sip|etf|cash|retire|goal|"
     r"macro|interest|recess|volatil|loss|gain|percent|apy|return|asset|diversif|bear|bull|"
     r"correction|expense|capital\s*gain|savings|debt|pension|nominee|lumpsum|index|sector|"
     r"gold|commod|rupee|inr|budget|mortgage|401k|\bira\b|roth|forex|crypto|bitcoin|insurance|"
-    r"financial|broker|trade|trading|fee|401\b|emergency\s*fund|refinance|loan|credit\s*score|"
+    r"financial|broker|trading|fee|401\b|emergency\s*fund|refinance|loan|credit\s*score|"
     r"income|salary|net\s*worth|\bsave\b|saving|vacation|travel|trip|holiday|wedding|tuition|"
     r"529|college|university|rainy\s*day|nest\s*egg|piggybank|allowance)\b",
     re.I,
@@ -66,47 +66,6 @@ OFF_TOPIC_RE = re.compile(
     r"dating|porn|hack\s*into|malware)\b",
     re.I,
 )
-
-SAMPLE_ROWS = [
-    {
-        "name": "Sample stock A (placeholder)",
-        "type": "stock",
-        "value": 42000,
-        "risk": "high",
-    },
-    {
-        "name": "Sample stock B (placeholder)",
-        "type": "stock",
-        "value": 18000,
-        "risk": "medium",
-    },
-    {
-        "name": "Diversified equity mutual fund (placeholder)",
-        "type": "mutual_fund",
-        "value": 68000,
-        "risk": "medium",
-    },
-    {
-        "name": "Balanced mutual fund (placeholder)",
-        "type": "mutual_fund",
-        "value": 32000,
-        "risk": "low",
-    },
-    {
-        "name": "Liquid / cash-style mutual fund (placeholder)",
-        "type": "cash_or_liquid",
-        "value": 22000,
-        "risk": "low",
-    },
-]
-
-SCENARIO_OPTIONS = [
-    ("market-drop", "Market drop (~20%)"),
-    ("high-inflation", "High inflation"),
-    ("planned-withdrawal", "Withdraw ~20% next year"),
-    ("income-risk", "Lose income ~6 months"),
-    ("timeline-sooner", "Need money sooner"),
-]
 
 
 def get_api_key() -> str | None:
@@ -245,7 +204,7 @@ def _login_hero_white_html() -> str:
       font-size:1.05rem;line-height:1.65;color:#475569;
       margin:0 0 28px 0;max-width:540px;
     ">
-      Educational tools for stocks and mutual funds — AI chat with guardrails, goal coaching, and rebalance simulations.
+      Educational tools for stocks and mutual funds — AI chat with guardrails and goal coaching.
       Not investment advice.
     </p>
     <div style="
@@ -331,8 +290,8 @@ def login_screen() -> None:
             <p style="font-family:'Source Sans 3',system-ui,sans-serif;font-size:1rem;line-height:1.65;
             color:#334155;max-width:520px;margin:8px 0 0 0;">
             <strong style="color:#1e293b;">What you get after sign-in</strong><br/>
-            Portfolio-style metrics, what-if chat with guardrails, goal coaching,
-            and AI rebalance simulations — built for learning, not live trading.
+            Portfolio-style metrics, what-if chat with guardrails (REBA),
+            and guided goal coaching — built for learning, not live trading.
             </p>
             """,
             unsafe_allow_html=True,
@@ -440,7 +399,7 @@ def page_portfolio() -> None:
             render_performance_chart(perf_df)
             st.caption("Sample performance path for the **combined** portfolio above (illustrative).")
             st.markdown(
-                '<p class="pf-footlink">See performance details — explore scenarios in <strong>AI Rebalance</strong> →</p>',
+                '<p class="pf-footlink">See performance details — ask <strong>REBA</strong> under <strong>Agents</strong> →</p>',
                 unsafe_allow_html=True,
             )
 
@@ -500,7 +459,7 @@ def page_portfolio() -> None:
                 "Bars show **unrealized** long-term vs short-term P/L on holdings (educational split only)."
             )
             st.markdown(
-                '<p class="pf-footlink">For practice moves, open <strong>AI Rebalance</strong> in the sidebar</p>',
+                '<p class="pf-footlink">For scenario-style questions, open <strong>Agents</strong> and ask <strong>REBA</strong></p>',
                 unsafe_allow_html=True,
             )
 
@@ -560,7 +519,7 @@ def _greeting_bullets() -> str:
     return (
         "- I’m **REBA** — ask any **finance or investing** question in plain words.\n"
         "- Replies are **bullet points** so they’re easy to scan.\n"
-        "- For a full practice rebalance, open **AI Rebalance** in the sidebar.\n"
+        "- For deeper “what if” practice, open **Agents** and chat with **REBA**.\n"
         "- Switch to **Goal coach (chat)** for a short questionnaire + summary."
     )
 
@@ -1043,139 +1002,6 @@ def page_agent() -> None:
         render_guided_goal_setting()
 
 
-def page_rebalance() -> None:
-    st.header("AI Rebalance (simulation)")
-    st.caption("Practice scenarios on the demo portfolio — open from the sidebar.")
-    st.warning("**Educational simulation — not financial advice.** No real trades.")
-
-    if "rebalance_df" not in st.session_state:
-        st.session_state.rebalance_df = pd.DataFrame(SAMPLE_ROWS)
-
-    col_a, col_b = st.columns([3, 1])
-    with col_b:
-        if st.button("Load sample portfolio"):
-            st.session_state.rebalance_df = pd.DataFrame(SAMPLE_ROWS)
-            st.rerun()
-
-    edited = st.data_editor(
-        st.session_state.rebalance_df,
-        num_rows="dynamic",
-        column_config={
-            "name": st.column_config.TextColumn("Asset name"),
-            "type": st.column_config.SelectboxColumn(
-                "Type",
-                options=["stock", "mutual_fund", "cash_or_liquid"],
-                required=True,
-            ),
-            "value": st.column_config.NumberColumn("Value (₹)", min_value=0, format="%d"),
-            "risk": st.column_config.SelectboxColumn(
-                "Risk",
-                options=["low", "medium", "high"],
-                required=True,
-            ),
-        },
-        hide_index=True,
-        key="holdings_editor",
-    )
-    st.session_state.rebalance_df = edited
-
-    scenario_labels = dict(SCENARIO_OPTIONS)
-    scenario_id = st.selectbox(
-        "What-if scenario",
-        [x[0] for x in SCENARIO_OPTIONS],
-        format_func=lambda x: scenario_labels[x],
-    )
-    st.caption(SCENARIO_PROMPTS.get(scenario_id, ""))
-
-    rows = edited.dropna(how="all")
-    rows = rows[rows["name"].astype(str).str.strip() != ""]
-    rows = rows[rows["value"].fillna(0) > 0]
-
-    portfolio: list[dict[str, Any]] = []
-    for _, r in rows.iterrows():
-        portfolio.append(
-            {
-                "name": str(r["name"]).strip(),
-                "type": str(r["type"]),
-                "value": float(r["value"]),
-                "risk": str(r["risk"]),
-            }
-        )
-
-    cur = sum_by_type(portfolio) if portfolio else None
-    if cur:
-        st.subheader("Current allocation (by type)")
-        st.bar_chart(
-            pd.DataFrame(
-                {
-                    "bucket": ["Stocks", "Mutual funds", "Cash / liquid"],
-                    "percent": [
-                        cur["stocks"],
-                        cur["mutualFunds"],
-                        cur["cashOrLiquidFunds"],
-                    ],
-                }
-            ).set_index("bucket")
-        )
-
-    if st.button("Get AI recommendation", type="primary"):
-        if not portfolio:
-            st.error("Add at least one holding with a name and positive value.")
-        else:
-            with st.spinner("Thinking…"):
-                try:
-                    key = get_api_key()
-                    goal = get_goal_profile()
-                    result = run_rebalance(portfolio, scenario_id, goal, key)
-                    st.session_state.rebalance_result = result
-                except Exception as e:
-                    st.error(str(e))
-            st.rerun()
-
-    res = st.session_state.get("rebalance_result")
-    if res:
-        src = res.get("_source", "")
-        st.info(f"Source: **{'Claude API' if src == 'claude' else 'Built-in simulation'}**")
-        if res.get("_warning"):
-            st.warning(res["_warning"])
-
-        st.subheader(res.get("summary", ""))
-        c1, c2 = st.columns(2)
-        c1.write(f"**Health:** {res.get('portfolioHealth', '')}")
-        c1.write(f"**Risk feel before:** {res.get('riskLevelBefore', '')}")
-        c1.write(f"**Risk feel after:** {res.get('riskLevelAfter', '')}")
-
-        ra = res.get("recommendedAllocation", {})
-        c2.write("**Suggested mix (%)**")
-        c2.bar_chart(
-            pd.DataFrame(
-                {
-                    "bucket": ["Stocks", "Mutual funds", "Cash / liquid"],
-                    "percent": [
-                        ra.get("stocks", 0),
-                        ra.get("mutualFunds", 0),
-                        ra.get("cashOrLiquidFunds", 0),
-                    ],
-                }
-            ).set_index("bucket")
-        )
-
-        st.subheader("Simulated moves")
-        for a in res.get("actions", []):
-            with st.expander(f"{a.get('action', '')} — {a.get('amountOrPercent', '')}"):
-                st.write(f"**From** {a.get('fromAsset', '')} → **To** {a.get('toAsset', '')}")
-                st.write(a.get("reason", ""))
-
-        tn = res.get("transparencyNotes", {})
-        st.subheader("Transparency (non-advisory)")
-        st.write(f"**Costs:** {tn.get('costs', '')}")
-        st.write(f"**Taxes:** {tn.get('taxes', '')}")
-        st.write(f"**Risk in plain words:** {tn.get('riskExplanation', '')}")
-        st.write(f"**Goals:** {tn.get('goalAlignment', '')}")
-        st.write(res.get("beginnerExplanation", ""))
-        st.error("This is an educational simulation, not financial advice.")
-
-
 def main() -> None:
     if not st.session_state.logged_in:
         login_screen()
@@ -1185,7 +1011,7 @@ def main() -> None:
         st.markdown("### Workspace")
         nav_main = st.radio(
             "Navigate",
-            ["portfolio", "Agents", "AI Rebalance"],
+            ["portfolio", "Agents"],
             label_visibility="collapsed",
         )
         if nav_main == "Agents":
@@ -1194,8 +1020,6 @@ def main() -> None:
                 "<strong>Goal coach</strong> — questionnaire + summary. Educational only.</small>",
                 unsafe_allow_html=True,
             )
-        elif nav_main == "AI Rebalance":
-            st.caption("What-if scenarios on the demo portfolio (practice only).")
 
         st.divider()
         if st.button("Log out"):
@@ -1209,10 +1033,8 @@ def main() -> None:
 
     if nav_main == "portfolio":
         page_portfolio()
-    elif nav_main == "Agents":
-        page_agent()
     else:
-        page_rebalance()
+        page_agent()
 
 
 if __name__ == "__main__":
