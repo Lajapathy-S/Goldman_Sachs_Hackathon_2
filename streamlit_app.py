@@ -16,12 +16,14 @@ Without a key, AI Rebalance uses the built-in simulation only.
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 
 import pandas as pd
 import streamlit as st
 
+from streamlit_claude_client import goal_coach_reply, whatif_reply
 from streamlit_rebalance import SCENARIO_PROMPTS, run_rebalance, sum_by_type
 
 st.set_page_config(
@@ -39,6 +41,8 @@ for k, v in [
     ("goal_years", 15),
     ("goal_comfort", "hold"),
     ("agent_messages", []),
+    ("goal_claude_summary", None),
+    ("goal_claude_source", None),
 ]:
     if k not in st.session_state:
         st.session_state[k] = v
@@ -106,6 +110,16 @@ def get_api_key() -> str | None:
         return None
 
 
+def sync_anthropic_env_from_secrets() -> None:
+    """So streamlit_claude_client picks up ANTHROPIC_MODEL from Cloud secrets."""
+    try:
+        m = st.secrets.get("ANTHROPIC_MODEL")
+        if m:
+            os.environ["ANTHROPIC_MODEL"] = str(m)
+    except Exception:
+        pass
+
+
 def get_goal_profile() -> dict[str, Any] | None:
     raw = st.session_state.get("goal_saved")
     if not raw:
@@ -146,15 +160,55 @@ def page_portfolio() -> None:
     st.line_chart(chart.set_index("Month"))
 
 
-def page_goals() -> None:
-    st.header("Guided Goal-Setting")
-    st.write("No alpha, beta, or Sharpe — just plain questions.")
+def _guardrail_bullets() -> str:
+    return (
+        "- I only answer **money and portfolio** questions in simple language.\n"
+        "- Try a **what if** about markets, inflation, withdrawals, or saving for a goal.\n"
+        "- Example: *What if the market drops by 20%?*"
+    )
+
+
+def _greeting_bullets() -> str:
+    return (
+        "- Ask any **what-if** about investing in plain words.\n"
+        "- Answers show as **bullet points** so they’re easy to scan.\n"
+        "- For a full practice rebalance, open **AI Rebalance**.\n"
+        "- Switch to **Guided goal-setting** for a short questionnaire + AI summary."
+    )
+
+
+def _append_whatif_response(user_text: str, prior_history: list[tuple[str, str]]) -> None:
+    """Append assistant reply; prior_history = messages before this user turn (excludes current user)."""
+    if OFF_TOPIC_RE.search(user_text) or (
+        len(user_text.strip()) > 2 and not FINANCIAL_RE.search(user_text)
+    ):
+        st.session_state.agent_messages.append(("assistant", _guardrail_bullets()))
+        st.session_state["_last_whatif_source"] = "guardrail"
+        return
+    if re.match(r"^(hi|hello|hey)\b", user_text, re.I) and len(user_text) < 40:
+        st.session_state.agent_messages.append(("assistant", _greeting_bullets()))
+        st.session_state["_last_whatif_source"] = "greeting"
+        return
+
+    key = get_api_key()
+    sync_anthropic_env_from_secrets()
+    reply, src = whatif_reply(key, user_text, prior_history)
+    st.session_state.agent_messages.append(("assistant", reply))
+    st.session_state["_last_whatif_source"] = src
+
+
+def render_guided_goal_setting() -> None:
+    """Wizard + Claude bullet summary (second tab on Agent page)."""
+    st.subheader("Guided goal-setting")
+    st.write("A few questions — then an **AI summary in bullet points** (Claude when configured).")
 
     step = st.session_state.goal_step
     if step == 0:
         st.write("We clarify **when** you need money and **how bumpy** a ride you can handle.")
-        if st.button("Begin"):
+        if st.button("Begin", key="g_begin"):
             st.session_state.goal_step = 1
+            st.session_state.goal_claude_summary = None
+            st.session_state.goal_claude_source = None
             st.rerun()
         return
 
@@ -170,24 +224,31 @@ def page_goals() -> None:
             list(goal_labels.keys()),
             format_func=lambda k: goal_labels[k],
             horizontal=False,
+            key="g_main",
         )
         col1, col2 = st.columns(2)
-        if col1.button("Back"):
+        if col1.button("Back", key="g_b1"):
             st.session_state.goal_step = 0
             st.rerun()
-        if col2.button("Next"):
+        if col2.button("Next", key="g_n1"):
             st.session_state.goal_step = 2
             st.rerun()
         return
 
     if step == 2:
-        years = st.slider("Roughly when will you need most of this money? (years)", 1, 40, 15)
+        years = st.slider(
+            "Roughly when will you need most of this money? (years)",
+            1,
+            40,
+            st.session_state.goal_years,
+            key="g_years",
+        )
         st.session_state.goal_years = years
         col1, col2 = st.columns(2)
-        if col1.button("Back"):
+        if col1.button("Back", key="g_b2"):
             st.session_state.goal_step = 1
             st.rerun()
-        if col2.button("Next"):
+        if col2.button("Next", key="g_n2"):
             st.session_state.goal_step = 3
             st.rerun()
         return
@@ -202,12 +263,13 @@ def page_goals() -> None:
             "If your portfolio dropped about 20% in a tough year, you would…",
             list(comfort_labels.keys()),
             format_func=lambda k: comfort_labels[k],
+            key="g_comfort",
         )
         col1, col2 = st.columns(2)
-        if col1.button("Back"):
+        if col1.button("Back", key="g_b3"):
             st.session_state.goal_step = 2
             st.rerun()
-        if col2.button("Save profile"):
+        if col2.button("Get my summary", type="primary", key="g_save"):
             c = st.session_state.goal_comfort
             risk = "Cautious" if c == "sell" else "Balanced" if c == "hold" else "Growth-minded"
             profile = {
@@ -217,74 +279,87 @@ def page_goals() -> None:
                 "riskLabel": risk,
             }
             st.session_state.goal_saved = json.dumps(profile)
+            sync_anthropic_env_from_secrets()
+            key = get_api_key()
+            with st.spinner("Generating your summary…"):
+                summary, src = goal_coach_reply(key, profile)
+            st.session_state.goal_claude_summary = summary
+            st.session_state.goal_claude_source = src
             st.session_state.goal_step = 4
             st.rerun()
         return
 
-    st.success("Profile saved for use in **AI Rebalance**.")
+    st.success("Here’s your saved profile and AI summary.")
     st.json(json.loads(st.session_state.goal_saved))
-    if st.button("Start over"):
+    src = st.session_state.get("goal_claude_source") or "fallback"
+    st.caption(f"Summary source: **{'Claude API' if src == 'claude' else 'Built-in template'}**")
+    st.markdown(st.session_state.get("goal_claude_summary") or "")
+    if st.button("Start over", key="g_reset"):
         st.session_state.goal_step = 0
+        st.session_state.goal_claude_summary = None
+        st.session_state.goal_claude_source = None
         st.rerun()
-
-
-def agent_reply_financial(text: str) -> str:
-    t = text.lower()
-    if "20" in t and ("market" in t or "drop" in t or "crash" in t):
-        return "For a **~20% market drop**, we’d usually suggest trimming the riskiest stock sleeve and adding to **diversified mutual funds** in a few small steps — see **AI Rebalance** for a full simulated plan."
-    if "inflation" in t:
-        return "With **high inflation**, idle cash can lose buying power. A common playbook: keep long-term money in diversified funds, and don’t move everything at once."
-    if "withdraw" in t or "need cash" in t:
-        return "If you need a **big withdrawal soon**, park that slice in **liquid / low-bounce funds** first, then rebalance the rest — try the **Planned withdrawal** scenario in AI Rebalance."
-    return (
-        "I stay high-level: compare your mix to your goal date, adjust in **small steps**, and "
-        "watch costs/taxes. Open **AI Rebalance** for a structured practice run."
-    )
 
 
 def page_agent() -> None:
     st.header("Agent")
-    st.caption("Financial topics only — off-topic questions get a gentle redirect.")
+    st.caption(
+        "Both areas use the **Claude API** when `ANTHROPIC_API_KEY` is set in Streamlit secrets; "
+        "otherwise you get clear bullet templates."
+    )
+    sync_anthropic_env_from_secrets()
 
-    for role, content in st.session_state.agent_messages:
-        with st.chat_message(role):
-            st.write(content)
+    tab_chat, tab_goals = st.tabs(["What-if chat", "Guided goal-setting"])
 
-    presets = [
-        "What if the market drops by 20%?",
-        "What if inflation stays high?",
-        "What if I need to withdraw 20% next year?",
-    ]
-    st.write("**Quick prompts**")
-    cols = st.columns(3)
-    for i, p in enumerate(presets):
-        if cols[i].button(p[:40] + "…", key=f"preset_{i}"):
-            st.session_state.agent_messages.append(("user", p))
-            st.session_state.agent_messages.append(("assistant", agent_reply_financial(p)))
+    with tab_chat:
+        st.subheader("What-if chat")
+        st.write("Ask portfolio **what-if** questions. Replies are **bullet points** for quick reading.")
+
+        presets = [
+            "What if the market drops by 20%?",
+            "What if inflation stays high?",
+            "What if I need to withdraw 20% next year?",
+        ]
+        st.write("**Quick prompts**")
+        pc = st.columns(3)
+        for i, p in enumerate(presets):
+            if pc[i].button(p, key=f"preset_{i}"):
+                prior = [
+                    (r, c)
+                    for r, c in st.session_state.agent_messages
+                    if r in ("user", "assistant")
+                ]
+                st.session_state.agent_messages.append(("user", p))
+                _append_whatif_response(p, prior)
+                st.rerun()
+
+        for role, content in st.session_state.agent_messages:
+            with st.chat_message(role):
+                st.markdown(content)
+
+        src = st.session_state.get("_last_whatif_source")
+        if src in ("claude", "fallback"):
+            st.caption(
+                f"Last AI reply: **{'Claude API' if src == 'claude' else 'Built-in template (add API key for Claude)'}**"
+            )
+
+        if prompt := st.chat_input("Ask a what-if question…"):
+            prior = [
+                (r, c)
+                for r, c in st.session_state.agent_messages
+                if r in ("user", "assistant")
+            ]
+            st.session_state.agent_messages.append(("user", prompt))
+            _append_whatif_response(prompt, prior)
             st.rerun()
 
-    if prompt := st.chat_input("Define a task for your agent"):
-        st.session_state.agent_messages.append(("user", prompt))
-        if OFF_TOPIC_RE.search(prompt) or (
-            len(prompt.strip()) > 2 and not FINANCIAL_RE.search(prompt)
-        ):
-            st.session_state.agent_messages.append(
-                (
-                    "assistant",
-                    "I only handle **portfolio and money-planning** questions. Try a “what if…” "
-                    "about markets, inflation, or withdrawals.",
-                )
-            )
-        elif re.match(r"^(hi|hello|hey)\b", prompt, re.I) and len(prompt) < 40:
-            st.session_state.agent_messages.append(
-                (
-                    "assistant",
-                    "Hi! Ask me about **rebalancing**, **risk in plain words**, or use **AI Rebalance**.",
-                )
-            )
-        else:
-            st.session_state.agent_messages.append(("assistant", agent_reply_financial(prompt)))
-        st.rerun()
+        if st.button("Clear chat history"):
+            st.session_state.agent_messages = []
+            st.session_state.pop("_last_whatif_source", None)
+            st.rerun()
+
+    with tab_goals:
+        render_guided_goal_setting()
 
 
 def page_rebalance() -> None:
@@ -305,14 +380,16 @@ def page_rebalance() -> None:
         num_rows="dynamic",
         column_config={
             "name": st.column_config.TextColumn("Asset name"),
-            "type": st.column_config.SelectColumn(
+            "type": st.column_config.SelectboxColumn(
                 "Type",
                 options=["stock", "mutual_fund", "cash_or_liquid"],
                 required=True,
             ),
             "value": st.column_config.NumberColumn("Value (₹)", min_value=0, format="%d"),
-            "risk": st.column_config.SelectColumn(
-                "Risk", options=["low", "medium", "high"], required=True
+            "risk": st.column_config.SelectboxColumn(
+                "Risk",
+                options=["low", "medium", "high"],
+                required=True,
             ),
         },
         hide_index=True,
@@ -422,11 +499,13 @@ def main() -> None:
         login_screen()
         return
 
+    sync_anthropic_env_from_secrets()
+
     with st.sidebar:
         st.markdown("### Workspace")
         page = st.radio(
             "Navigate",
-            ["Portfolio", "Guided Goal-Setting", "Agent", "AI Rebalance"],
+            ["Portfolio", "Agent", "AI Rebalance"],
             label_visibility="collapsed",
         )
         st.divider()
@@ -437,8 +516,6 @@ def main() -> None:
 
     if page == "Portfolio":
         page_portfolio()
-    elif page == "Guided Goal-Setting":
-        page_goals()
     elif page == "Agent":
         page_agent()
     else:
