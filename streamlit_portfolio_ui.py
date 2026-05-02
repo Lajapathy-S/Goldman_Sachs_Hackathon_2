@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 try:
     import altair as alt
@@ -119,31 +120,26 @@ def render_health_score_card(health: dict) -> None:
     # Map score 0..100 to angle 180..0 degrees for a top semicircle meter.
     needle_deg = 180.0 - 180.0 * (score / 100.0)
 
-    st.markdown(
-        f"""
-        <div style="display:flex;justify-content:center;align-items:center;width:100%;padding-top:6px;">
-          <div style="width:min(520px,96%);text-align:center;">
-            <svg viewBox="0 0 320 190" width="100%" height="190" aria-hidden="true">
-              <!-- colored meter bands -->
-              <path d="M 28 160 A 132 132 0 0 1 83 67" fill="none" stroke="#ef4444" stroke-width="24" stroke-linecap="round"/>
-              <path d="M 83 67 A 132 132 0 0 1 134 33" fill="none" stroke="#f59e0b" stroke-width="24" stroke-linecap="butt"/>
-              <path d="M 134 33 A 132 132 0 0 1 186 33" fill="none" stroke="#facc15" stroke-width="24" stroke-linecap="butt"/>
-              <path d="M 186 33 A 132 132 0 0 1 237 67" fill="none" stroke="#86efac" stroke-width="24" stroke-linecap="butt"/>
-              <path d="M 237 67 A 132 132 0 0 1 292 160" fill="none" stroke="#22c55e" stroke-width="24" stroke-linecap="round"/>
-
-              <!-- needle -->
-              <g transform="translate(160 160) rotate({needle_deg})">
-                <polygon points="0,-6 108,0 0,6" fill="#1e3a5f"></polygon>
-              </g>
-              <circle cx="160" cy="160" r="8" fill="#1e3a5f"></circle>
-            </svg>
-            <p style="margin:-8px 0 2px 0;font-size:2.6rem;font-weight:800;color:#1e3a5f;">{score}</p>
-            <p style="margin:0 0 8px 0;font-size:1.08rem;font-weight:700;color:{label_color};">{label}</p>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    gauge_html = f"""
+    <div style="display:flex;justify-content:center;align-items:center;width:100%;padding-top:6px;">
+      <div style="width:min(520px,96%);text-align:center;">
+        <svg viewBox="0 0 320 200" width="100%" height="200" aria-hidden="true">
+          <path d="M 28 160 A 132 132 0 0 1 83 67" fill="none" stroke="#ef4444" stroke-width="24" stroke-linecap="round"/>
+          <path d="M 83 67 A 132 132 0 0 1 134 33" fill="none" stroke="#f59e0b" stroke-width="24" stroke-linecap="butt"/>
+          <path d="M 134 33 A 132 132 0 0 1 186 33" fill="none" stroke="#facc15" stroke-width="24" stroke-linecap="butt"/>
+          <path d="M 186 33 A 132 132 0 0 1 237 67" fill="none" stroke="#86efac" stroke-width="24" stroke-linecap="butt"/>
+          <path d="M 237 67 A 132 132 0 0 1 292 160" fill="none" stroke="#22c55e" stroke-width="24" stroke-linecap="round"/>
+          <g transform="translate(160 160) rotate({needle_deg})">
+            <polygon points="0,-5 108,0 0,5" fill="#1e3a5f"></polygon>
+          </g>
+          <circle cx="160" cy="160" r="8" fill="#1e3a5f"></circle>
+        </svg>
+        <p style="margin:-14px 0 2px 0;font-size:2.6rem;font-weight:800;color:#1e3a5f;">{score}</p>
+        <p style="margin:0 0 8px 0;font-size:1.08rem;font-weight:700;color:{label_color};">{label}</p>
+      </div>
+    </div>
+    """
+    components.html(gauge_html, height=260, scrolling=False)
     st.caption("Score is derived from diversification, balance, concentration, and growth trend on sample data.")
 
 
