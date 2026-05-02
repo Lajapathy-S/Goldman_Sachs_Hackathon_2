@@ -109,9 +109,11 @@ Rules:
 - Remind them this is educational, not personal financial advice.
 - No alpha, beta, Sharpe.
 - Include a section in bullets titled **Suggested now (educational examples)**, tailored to goal + years + risk, with:
-  1) **Stocks now (examples):** 3–5 ideas as generic stock profiles (no real company names/tickers),
-  2) **Mutual funds now (examples):** 3–5 fund categories/style buckets.
+  1) **Stocks now (examples):** 3–5 examples using real, well-known listed companies (large and liquid),
+  2) **Mutual funds now (examples):** 3–5 examples using real, widely available mutual funds / index funds.
 - Keep suggestions practical ("what kind of assets now"), not guaranteed picks.
+- Prefer India-oriented examples when user context is INR / India, but keep names generic enough for education.
+- Add one short caution line: "Examples only; verify current market price, expense ratio, and suitability before investing."
 - Be warm and practical."""
 
 
@@ -161,7 +163,7 @@ def _fallback_whatif_bullets(user_text: str) -> str:
             "- A simple habit is to **rebalance in small steps** toward a target mix rather than one emotional all-in move.\n"
             "- If the question is vague, clarify **when** you need the money and **how much** loss you could tolerate for "
             "that timeline.\n"
-            "- This is **educational only**—not a recommendation to buy or sell any specific security."
+            "- This is not a recommendation to buy or sell any specific security."
         )
     if "20" in t and ("market" in t or "drop" in t or "crash" in t):
         return (
@@ -170,7 +172,7 @@ def _fallback_whatif_bullets(user_text: str) -> str:
             "- **Tax implications:** selling appreciated holdings may realize capital gains; check local rules before executing.\n"
             "- **Long-term goal alignment:** this can reduce short-term shock while keeping growth exposure for goals that are years away.\n"
             "- **Simple logic:** keep near-term money stable, and let long-term money stay diversified instead of reacting in one big move.\n"
-            "- This is educational only; use **REBA** under **Agents** to talk through scenario trade-offs."
+            "- Use **REBA** under **Agents** to talk through scenario trade-offs."
         )
     if "inflation" in t:
         return (
@@ -179,7 +181,7 @@ def _fallback_whatif_bullets(user_text: str) -> str:
             "- **Tax implications:** reallocating in taxable accounts can trigger gains/losses; treatment differs by region and asset type.\n"
             "- **Long-term goal alignment:** the split should match your timeline (near-term spending bucket vs long-term compounding bucket).\n"
             "- **Simple logic:** protect soon-needed money with steadier options, and keep distant-goal money diversified for growth potential.\n"
-            "- Educational only—not personal advice."
+            "- Not personal advice."
         )
     if "withdraw" in t or "cash" in t:
         return (
@@ -196,7 +198,7 @@ def _fallback_whatif_bullets(user_text: str) -> str:
         "- **Tax implications:** selling can realize gains/losses; check local tax treatment before changing allocations.\n"
         "- **Long-term goal alignment:** your mix should map to your goal date, not short-term headlines.\n"
         "- **Simple logic:** keep short-term money stable and long-term money diversified, then rebalance in small steps.\n"
-        "- Educational only—not a recommendation to buy or sell anything."
+        "- Not a recommendation to buy or sell anything."
     )
 
 
@@ -210,14 +212,23 @@ def _fallback_goal_bullets(profile: dict[str, Any]) -> str:
     y = y_raw
     r = profile.get("riskLabel", "balanced")
     if y_num <= 5 or "cautious" in str(r).lower():
-        stock_examples = "high-cashflow blue-chip leaders, low-debt defensive businesses, broad-market index ETF"
-        mf_examples = "short-duration debt fund, conservative hybrid fund, large-cap index fund, liquid fund for near-term goals"
+        stock_examples = "HDFC Bank, TCS, Infosys, Hindustan Unilever"
+        mf_examples = (
+            "SBI Nifty 50 Index Fund, UTI Nifty 50 Index Fund, "
+            "ICICI Prudential Equity & Debt Fund, HDFC Short Term Debt Fund"
+        )
     elif y_num <= 12:
-        stock_examples = "profitable large-cap compounders, diversified sector leaders, broad-market index ETF"
-        mf_examples = "large-cap index fund, flexi-cap fund, balanced advantage fund, short-duration debt fund"
+        stock_examples = "Reliance Industries, TCS, HDFC Bank, Infosys, Larsen & Toubro"
+        mf_examples = (
+            "Parag Parikh Flexi Cap Fund, UTI Nifty 50 Index Fund, "
+            "ICICI Prudential Bluechip Fund, HDFC Balanced Advantage Fund"
+        )
     else:
-        stock_examples = "broad index exposure, high-quality growth leaders, dividend-growth blue chips"
-        mf_examples = "flexi-cap fund, index fund, mid-cap fund (limited slice), international index fund (small slice)"
+        stock_examples = "Reliance Industries, Infosys, Tata Consultancy Services, HDFC Bank, Asian Paints"
+        mf_examples = (
+            "Parag Parikh Flexi Cap Fund, SBI Nifty Index Fund, "
+            "Motilal Oswal Nasdaq 100 FoF, Kotak Emerging Equity Fund"
+        )
     return (
         f"- Your answers point to a **{r}** comfort style with about **{y} years** in view.\n"
         f"- Main theme: **{g}**—keep that as the north star when markets get noisy.\n"
@@ -226,6 +237,7 @@ def _fallback_goal_bullets(profile: dict[str, Any]) -> str:
         "- **Suggested now (educational examples):**\n"
         f"- **Stocks now (examples):** {stock_examples}.\n"
         f"- **Mutual funds now (examples):** {mf_examples}.\n"
+        "- Examples only; verify current market price, expense ratio, and suitability before investing.\n"
         "- Revisit this once a year or after a big life change (job, family, health).\n"
         "- This summary is educational—not personal financial advice.\n"
         "- Add **ANTHROPIC_API_KEY** in secrets for a tailored AI write-up."

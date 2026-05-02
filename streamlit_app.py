@@ -249,7 +249,7 @@ def login_screen() -> None:
               <summary>agents ▾</summary>
               <div class="gs-dd-body">
                 <strong>Guided goal setting</strong> — A short, chat-style flow that captures your goal, timeline,
-                and comfort with risk, then summarizes trade-offs in plain language (educational only).
+                and comfort with risk, then summarizes trade-offs in plain language (for learning).
               </div>
             </details>
             </div>
@@ -265,7 +265,7 @@ def login_screen() -> None:
 
     if not st.session_state.show_member_login:
         st.markdown(_login_hero_white_html(), unsafe_allow_html=True)
-        st.caption("Click **Member sign-in** above to open the demo login. Educational only — not financial advice.")
+        st.caption("Click **Member sign-in** above to open the demo login. Not financial advice.")
         return
 
     st.markdown('<div class="gs-login-strip">', unsafe_allow_html=True)
@@ -317,6 +317,7 @@ def page_portfolio() -> None:
     from streamlit_portfolio_ui import (
         inject_portfolio_dashboard_css,
         render_allocation_chart,
+        render_health_score_card,
         render_performance_chart,
         render_transactions_chart,
         render_unrealized_chart,
@@ -326,6 +327,7 @@ def page_portfolio() -> None:
         allocation_by_investment_type,
         filter_performance,
         performance_monthly,
+        portfolio_health_score,
         returns_by_type,
         snapshot,
         transactions_annual,
@@ -368,6 +370,11 @@ def page_portfolio() -> None:
         """,
         unsafe_allow_html=True,
     )
+
+    with st.container(border=True):
+        st.markdown('<p class="pf-serif">Portfolio health score</p>', unsafe_allow_html=True)
+        health = portfolio_health_score()
+        render_health_score_card(health)
 
     perf_full = performance_monthly()
     range_options = ["ALL", "YTD", "1M", "3M", "6M", "1Y", "3Y", "5Y"]
@@ -623,7 +630,7 @@ GOAL_COACH_WELCOME = (
     "Hi — I’m your **Goal coach**.\n\n"
     "I’ll ask **three short questions** about what you’re investing for, your **time horizon**, and how you’d react "
     "if markets got rough. Then I’ll give you a **plain-English summary** (bullet points).\n\n"
-    "This is **educational only** — not personal financial advice.\n\n"
+    "This is not personal financial advice.\n\n"
     "When you’re ready, tap **Start conversation** below."
 )
 
@@ -749,7 +756,7 @@ def render_guided_goal_setting() -> None:
 
     st.markdown('<div class="goal-coach-frame">', unsafe_allow_html=True)
     st.markdown(
-        '<div class="goal-coach-badge">Goal coach · Educational only</div>',
+        '<div class="goal-coach-badge">Goal coach</div>',
         unsafe_allow_html=True,
     )
     st.caption("Chat-style flow with **money-only** guardrails — like a focused research assistant for goals.")
@@ -1008,7 +1015,7 @@ def main() -> None:
         if nav_main == "Agents":
             st.markdown(
                 "<small><strong>REBA</strong> — Finance-only what-if chat. "
-                "<strong>Goal coach</strong> — questionnaire + summary. Educational only.</small>",
+                "<strong>Goal coach</strong> — questionnaire + summary. </small>",
                 unsafe_allow_html=True,
             )
 

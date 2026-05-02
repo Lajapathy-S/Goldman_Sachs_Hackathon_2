@@ -99,6 +99,42 @@ def render_unrealized_chart(lt: float, st_pl: float) -> None:
     st.altair_chart(chart, use_container_width=True)
 
 
+def render_health_score_card(health: dict) -> None:
+    """Render a compact portfolio health gauge card."""
+    score = int(health.get("score", 0))
+    label = str(health.get("label", "Unknown"))
+    label_color = str(health.get("color", "#1e3a5f"))
+
+    base_start = -3.14159
+    span = 3.14159
+    bands = pd.DataFrame(
+        [
+            {"start": base_start, "end": base_start + span * 0.35, "band": "Bad", "color": "#ef4444"},
+            {"start": base_start + span * 0.35, "end": base_start + span * 0.55, "band": "Needs work", "color": "#f59e0b"},
+            {"start": base_start + span * 0.55, "end": base_start + span * 0.75, "band": "Fair", "color": "#facc15"},
+            {"start": base_start + span * 0.75, "end": base_start + span, "band": "Good", "color": "#22c55e"},
+        ]
+    )
+    gauge = (
+        alt.Chart(bands)
+        .mark_arc(innerRadius=62, outerRadius=92)
+        .encode(
+            theta=alt.Theta("start:Q", stack=None),
+            theta2="end:Q",
+            color=alt.Color("color:N", scale=None, legend=None),
+            tooltip=[alt.Tooltip("band:N", title="Range")],
+        )
+        .properties(height=180)
+    )
+    st.altair_chart(gauge, use_container_width=True)
+    st.markdown(
+        f'<p style="margin:-6px 0 2px 0;font-size:2.5rem;font-weight:800;color:#1e3a5f;">{score}</p>'
+        f'<p style="margin:0 0 8px 0;font-size:1.05rem;font-weight:700;color:{label_color};">{label}</p>',
+        unsafe_allow_html=True,
+    )
+    st.caption("Score is derived from diversification, balance, concentration, and growth trend on sample data.")
+
+
 def inject_portfolio_dashboard_css() -> None:
     st.markdown(
         f"""

@@ -216,11 +216,59 @@ def returns_by_type(duration_key: str) -> list[dict[str, Any]]:
             "pct": None,
             "in_portfolio": False,
         },
-        {
-            "name": "NPS / workplace",
-            "value": None,
-            "change": None,
-            "pct": None,
-            "in_portfolio": False,
-        },
     ]
+
+
+def portfolio_health_score() -> dict[str, Any]:
+    """
+    Simple demo health score for the sample portfolio (0-100).
+    Combines diversification, allocation balance, concentration, and growth trend.
+    """
+    rows = _rows()
+    if not rows:
+        return {
+            "score": 0,
+            "label": "Poor",
+            "color": "#dc2626",
+            "components": {},
+        }
+
+    total = sum(float(r["current_value"]) for r in rows) or 1.0
+    n_holdings = len(rows)
+    max_w = max(float(r["current_value"]) / total for r in rows)
+
+    stock_v = sum(float(r["current_value"]) for r in rows if r["asset_type"] == "Stock")
+    stock_pct = stock_v / total * 100.0
+    target_stock = 60.0
+
+    snap = snapshot()
+    cagr_pct = float(snap["cagr_pct"])
+
+    diversification = min(35.0, n_holdings * 7.0)
+    balance = max(0.0, 30.0 - abs(stock_pct - target_stock) * 0.75)
+    concentration = max(0.0, 20.0 - max(0.0, max_w * 100.0 - 28.0) * 0.9)
+    growth = min(15.0, max(0.0, (cagr_pct + 2.0) * 1.2))
+
+    score = int(round(diversification + balance + concentration + growth))
+    score = max(0, min(100, score))
+
+    if score < 35:
+        label, color = "Bad", "#dc2626"
+    elif score < 55:
+        label, color = "Needs work", "#f59e0b"
+    elif score < 75:
+        label, color = "Fair", "#facc15"
+    else:
+        label, color = "Good", "#16a34a"
+
+    return {
+        "score": score,
+        "label": label,
+        "color": color,
+        "components": {
+            "diversification": round(diversification, 1),
+            "balance": round(balance, 1),
+            "concentration": round(concentration, 1),
+            "growth": round(growth, 1),
+        },
+    }
