@@ -216,13 +216,6 @@ def _login_hero_white_html() -> str:
       EXPLORE WORKSPACE
     </div>
   </div>
-  <div aria-hidden="true" style="
-    position:absolute;right:4vw;top:42%;transform:translateY(-50%);
-    font-family:'Libre Baskerville',Georgia,serif;
-    font-size:clamp(3.5rem, 14vw, 8rem);
-    font-weight:700;color:rgba(15,23,42,0.06);
-    line-height:0.85;user-select:none;
-  ">AI</div>
 </div>
 """
 
@@ -898,8 +891,6 @@ def render_guided_goal_setting() -> None:
                 "Claude couldn’t generate the summary — showing the built-in template. "
                 + str(st.session_state["_goal_coach_api_error"])
             )
-        src = st.session_state.get("goal_claude_source") or "fallback"
-        st.caption(f"Summary source: **{'Claude API' if src == 'claude' else 'Built-in template'}**")
         if st.session_state.get("_goal_followup_api_error"):
             st.warning(
                 "Follow-up Claude call failed — last reply is the built-in template. "

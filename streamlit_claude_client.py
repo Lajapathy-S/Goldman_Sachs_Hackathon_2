@@ -103,11 +103,15 @@ GOAL_COACH_SYSTEM = """You are a financial coach for beginners. The user complet
 
 Rules:
 - The JSON includes **mainGoalLabel** (e.g. Home, Retirement, Education, Emergency fund). Use that exact goal in your bullets—do not replace it with another goal.
-- Respond ONLY with bullet points. Start every bullet with "- ". Use 5–8 bullets.
+- Respond ONLY with bullet points. Start every bullet with "- ". Use 8–12 bullets.
 - Summarize what their answers imply for how much risk might feel okay and how to think about time horizon.
 - Mention diversification and avoiding "all in one bet" in simple words.
 - Remind them this is educational, not personal financial advice.
-- No alpha, beta, Sharpe. No real stock names.
+- No alpha, beta, Sharpe.
+- Include a section in bullets titled **Suggested now (educational examples)**, tailored to goal + years + risk, with:
+  1) **Stocks now (examples):** 3–5 ideas as generic stock profiles (no real company names/tickers),
+  2) **Mutual funds now (examples):** 3–5 fund categories/style buckets.
+- Keep suggestions practical ("what kind of assets now"), not guaranteed picks.
 - Be warm and practical."""
 
 
@@ -198,13 +202,30 @@ def _fallback_whatif_bullets(user_text: str) -> str:
 
 def _fallback_goal_bullets(profile: dict[str, Any]) -> str:
     g = profile.get("mainGoalLabel") or profile.get("mainGoal", "your goal")
-    y = profile.get("years", "?")
+    y_raw = profile.get("years", "?")
+    try:
+        y_num = int(y_raw)
+    except Exception:
+        y_num = 10
+    y = y_raw
     r = profile.get("riskLabel", "balanced")
+    if y_num <= 5 or "cautious" in str(r).lower():
+        stock_examples = "high-cashflow blue-chip leaders, low-debt defensive businesses, broad-market index ETF"
+        mf_examples = "short-duration debt fund, conservative hybrid fund, large-cap index fund, liquid fund for near-term goals"
+    elif y_num <= 12:
+        stock_examples = "profitable large-cap compounders, diversified sector leaders, broad-market index ETF"
+        mf_examples = "large-cap index fund, flexi-cap fund, balanced advantage fund, short-duration debt fund"
+    else:
+        stock_examples = "broad index exposure, high-quality growth leaders, dividend-growth blue chips"
+        mf_examples = "flexi-cap fund, index fund, mid-cap fund (limited slice), international index fund (small slice)"
     return (
         f"- Your answers point to a **{r}** comfort style with about **{y} years** in view.\n"
         f"- Main theme: **{g}**—keep that as the north star when markets get noisy.\n"
         "- Shorter timelines usually mean **less** in the riskiest sleeve; longer ones allow more growth focus.\n"
         "- **Diversified mutual funds** often beat guessing single winners for beginners.\n"
+        "- **Suggested now (educational examples):**\n"
+        f"- **Stocks now (examples):** {stock_examples}.\n"
+        f"- **Mutual funds now (examples):** {mf_examples}.\n"
         "- Revisit this once a year or after a big life change (job, family, health).\n"
         "- This summary is educational—not personal financial advice.\n"
         "- Add **ANTHROPIC_API_KEY** in secrets for a tailored AI write-up."
