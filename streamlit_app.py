@@ -36,6 +36,7 @@ st.set_page_config(
 # --- session defaults
 for k, v in [
     ("logged_in", False),
+    ("show_member_login", False),
     ("goal_step", 0),
     ("goal_main", ""),
     ("goal_years", 15),
@@ -150,10 +151,14 @@ def _inject_login_page_css() -> None:
         .main .block-container { padding-left: 0 !important; padding-right: 0 !important; }
         [data-testid="stSidebar"] { display: none !important; }
         [data-testid="collapsedControl"] { display: none !important; }
+        .stApp, [data-testid="stAppViewContainer"] {
+            background-color: #ffffff !important;
+        }
         .gs-login-strip {
-            background: #f4f5f7;
-            padding: 36px 6vw 48px 6vw;
+            background: #ffffff;
+            padding: 28px 6vw 40px 6vw;
             margin: 0;
+            border-top: 1px solid #e2e8f0;
         }
         .gs-member-card-title {
             font-family: "Source Sans 3", system-ui, sans-serif;
@@ -171,101 +176,159 @@ def _inject_login_page_css() -> None:
             margin-top: 14px;
             line-height: 1.45;
         }
+        .gs-login-nav details {
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: top;
+        }
+        .gs-login-nav details > summary {
+            cursor: pointer;
+            list-style: none;
+            font-weight: 600;
+            color: #1e293b;
+        }
+        .gs-login-nav details > summary::-webkit-details-marker { display: none; }
+        .gs-login-nav .gs-dd-body {
+            position: absolute;
+            z-index: 20;
+            margin-top: 6px;
+            padding: 10px 12px;
+            min-width: 220px;
+            max-width: 280px;
+            background: #ffffff;
+            border: 1px solid rgba(26, 26, 26, 0.15);
+            border-radius: 4px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+            font-weight: 500;
+            font-size: 0.82rem;
+            line-height: 1.5;
+            color: #334155;
+        }
+        .gs-login-nav details { position: relative; }
+        .gs-login-nav .gs-plain {
+            display: inline-block;
+            margin-right: 12px;
+            padding-top: 2px;
+            font-weight: 600;
+            color: #1e293b;
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
 
 
-def _login_landing_hero_html() -> str:
-    """Goldman-style top bar + dark hero (educational clone — not affiliated)."""
-    hero_img = (
-        "https://images.unsplash.com/photo-1581092160562-40aa08f78845"
-        "?auto=format&fit=crop&w=2400&q=80"
-    )
-    return f"""
-<div class="gs-landing-root" style="margin:0;font-family:'Source Sans 3',system-ui,sans-serif;">
-  <nav class="gs-topbar" style="
-      display:flex;align-items:center;justify-content:space-between;
-      flex-wrap:wrap;gap:12px 24px;
-      padding:14px 6vw;
-      background:#a2b9d6;
-      border-bottom:1px solid rgba(26,43,75,0.08);
-  ">
-    <div style="display:flex;align-items:center;gap:40px;flex-wrap:wrap;">
-      <span style="font-family:'Libre Baskerville',Georgia,serif;font-size:1.35rem;font-weight:700;color:#0f172a;letter-spacing:-0.02em;">
-        AIChemist
-      </span>
-      <div style="display:flex;gap:28px;font-size:0.88rem;color:#1e293b;font-weight:600;">
-        <span>Portfolio</span>
-        <span>Agent</span>
-        <span>Rebalance</span>
-        <span>Insights</span>
-      </div>
-    </div>
-    <div style="display:flex;align-items:center;gap:20px;">
-      <span style="font-size:0.82rem;color:#475569;">Demo</span>
-      <span style="
-        display:inline-block;padding:8px 18px;
-        border:1px solid #0f172a;color:#0f172a;
-        font-size:0.82rem;font-weight:600;
-        background:transparent;border-radius:2px;
-      ">Member sign-in</span>
-    </div>
-  </nav>
-  <section class="gs-hero" style="
-      position:relative;
-      min-height:58vh;
-      padding:56px 6vw 72px 6vw;
-      background:
-        linear-gradient(100deg, rgba(15,23,42,0.94) 0%, rgba(15,23,42,0.72) 42%, rgba(30,41,59,0.45) 100%),
-        url('{hero_img}') center/cover no-repeat;
-      display:flex;align-items:flex-end;
-  ">
-    <div style="position:relative;z-index:2;max-width:min(640px,92vw);">
-      <h1 style="
-        font-family:'Libre Baskerville',Georgia,serif;
-        font-size:clamp(1.75rem, 4vw, 2.65rem);
-        font-weight:700;line-height:1.2;color:#fff;margin:0 0 20px 0;
-        letter-spacing:-0.02em;
-      ">
-        Navigate markets, goals, and portfolio decisions with clarity
-      </h1>
-      <p style="
-        font-family:'Source Sans 3',system-ui,sans-serif;
-        font-size:1.05rem;line-height:1.6;color:rgba(255,255,255,0.88);
-        margin:0 0 28px 0;max-width:540px;
-      ">
-        Educational tools for stocks and mutual funds — AI chat with guardrails, goal coaching, and rebalance simulations.
-        Not investment advice.
-      </p>
-      <div style="
-        display:inline-block;padding:12px 26px;
-        background:#fff;color:#0f172a;
-        font-size:0.9rem;font-weight:700;
-        letter-spacing:0.04em;border-radius:2px;
-      ">
-        EXPLORE WORKSPACE
-      </div>
-    </div>
-    <div aria-hidden="true" style="
-      position:absolute;right:4vw;top:50%;transform:translateY(-50%);
+def _login_hero_white_html() -> str:
+    """Light hero — white background, navy typography (landing before member sign-in)."""
+    return """
+<div style="position:relative;margin:0;font-family:'Source Sans 3',system-ui,sans-serif;
+  background:#ffffff;padding:48px 6vw 56px 6vw;min-height:42vh;border-bottom:1px solid #e2e8f0;">
+  <div style="position:relative;z-index:2;max-width:min(640px,92vw);">
+    <h1 style="
       font-family:'Libre Baskerville',Georgia,serif;
-      font-size:clamp(4rem, 18vw, 10rem);
-      font-weight:700;color:rgba(255,255,255,0.07);
-      line-height:0.85;user-select:none;
-    ">AI</div>
-  </section>
+      font-size:clamp(1.75rem, 4vw, 2.65rem);
+      font-weight:700;line-height:1.2;color:#0f172a;margin:0 0 20px 0;
+      letter-spacing:-0.02em;
+    ">
+      Navigate markets, goals, and portfolio decisions with clarity
+    </h1>
+    <p style="
+      font-family:'Source Sans 3',system-ui,sans-serif;
+      font-size:1.05rem;line-height:1.65;color:#475569;
+      margin:0 0 28px 0;max-width:540px;
+    ">
+      Educational tools for stocks and mutual funds — AI chat with guardrails, goal coaching, and rebalance simulations.
+      Not investment advice.
+    </p>
+    <div style="
+      display:inline-block;padding:12px 26px;
+      background:#0f172a;color:#ffffff;
+      font-size:0.9rem;font-weight:700;
+      letter-spacing:0.04em;border-radius:2px;
+    ">
+      EXPLORE WORKSPACE
+    </div>
+  </div>
+  <div aria-hidden="true" style="
+    position:absolute;right:4vw;top:42%;transform:translateY(-50%);
+    font-family:'Libre Baskerville',Georgia,serif;
+    font-size:clamp(3.5rem, 14vw, 8rem);
+    font-weight:700;color:rgba(15,23,42,0.06);
+    line-height:0.85;user-select:none;
+  ">AI</div>
 </div>
 """
 
 
 def login_screen() -> None:
-    """Full first-page sign-in — entire app is gated until this succeeds."""
+    """Landing (white) first; member login form only after 'Member sign-in'."""
     _inject_login_page_css()
-    st.markdown(_login_landing_hero_html(), unsafe_allow_html=True)
+
+    st.markdown(
+        '<div style="background:#a2b9d6;padding:14px 6vw;border-bottom:1px solid rgba(26,26,26,0.1);">',
+        unsafe_allow_html=True,
+    )
+    c_brand, c_nav, c_demo, c_btn = st.columns([1.5, 3.4, 0.65, 1.25], gap="small")
+    with c_brand:
+        st.markdown(
+            '<p style="font-family:Georgia,serif;font-size:1.35rem;font-weight:700;color:#0f172a;margin:0;padding-top:4px;">AIChemist</p>',
+            unsafe_allow_html=True,
+        )
+    with c_nav:
+        st.markdown(
+            """
+            <div class="gs-login-nav" style="padding-top:4px;font-size:0.88rem;font-family:'Source Sans 3',system-ui,sans-serif;">
+            <details>
+              <summary>portfolio ▾</summary>
+              <div class="gs-dd-body">
+                <strong>Stocks</strong> — Demo equity positions, performance, and how they move the mix.<br/><br/>
+                <strong>Mutual funds</strong> — Demo fund holdings and diversification in the sample portfolio.
+              </div>
+            </details>
+            <details>
+              <summary>agents ▾</summary>
+              <div class="gs-dd-body">
+                <strong>Guided goal setting</strong> — A short, chat-style flow that captures your goal, timeline,
+                and comfort with risk, then summarizes trade-offs in plain language (educational only).
+              </div>
+            </details>
+            <span class="gs-plain">tools&amp;resources</span>
+            <details>
+              <summary>company ▾</summary>
+              <div class="gs-dd-body">
+                <strong>Overview</strong> — AIChemist is an educational workspace for exploring portfolio ideas,
+                AI-assisted what-ifs, and rebalance simulations — not a broker and not personalized investment advice.
+              </div>
+            </details>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with c_demo:
+        st.markdown(
+            '<p style="margin:0;padding-top:10px;font-size:0.82rem;color:#334155;">Demo</p>',
+            unsafe_allow_html=True,
+        )
+    with c_btn:
+        st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
+        if st.button("Member sign-in", key="login_open_member_panel", use_container_width=True):
+            st.session_state.show_member_login = True
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    if not st.session_state.show_member_login:
+        st.markdown(_login_hero_white_html(), unsafe_allow_html=True)
+        st.caption("Click **Member sign-in** above to open the demo login. Educational only — not financial advice.")
+        return
 
     st.markdown('<div class="gs-login-strip">', unsafe_allow_html=True)
+    b1, b2 = st.columns([1, 5])
+    with b1:
+        if st.button("← Back", key="login_back_landing"):
+            st.session_state.show_member_login = False
+            st.rerun()
+    with b2:
+        st.markdown("")
     c_left, c_right = st.columns([1.35, 1.0], gap="large")
     with c_left:
         st.markdown(
@@ -292,6 +355,7 @@ def login_screen() -> None:
                 if submitted:
                     if u.strip().lower() == "admin" and p == "admin":
                         st.session_state.logged_in = True
+                        st.session_state.show_member_login = False
                         st.rerun()
                     else:
                         st.error("Demo account: **admin** / **admin**.")
@@ -302,7 +366,7 @@ def login_screen() -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def page_portfolio() -> None:
+def page_portfolio(portfolio_focus: str) -> None:
     from streamlit_portfolio_ui import (
         chart_donut,
         chart_lt_st,
@@ -311,17 +375,23 @@ def page_portfolio() -> None:
         inject_portfolio_dashboard_css,
     )
     from utils.portfolio_demo_metrics import (
-        allocation_by_asset,
-        allocation_by_investment_type,
+        allocation_by_focus,
         filter_performance,
         performance_monthly,
         returns_by_type,
-        snapshot,
+        snapshot_for_focus,
         transactions_annual,
     )
 
     inject_portfolio_dashboard_css()
-    snap = snapshot()
+    focus_key = "stocks" if portfolio_focus == "stocks" else "mutual_fund"
+    snap = snapshot_for_focus(focus_key)
+    title_suffix = "Stocks" if focus_key == "stocks" else "Mutual funds"
+    sub_suffix = (
+        "demo equity slice"
+        if focus_key == "stocks"
+        else "demo mutual-fund slice"
+    )
     invested = snap["invested"]
     current = snap["current"]
     day = snap["one_day_change"]
@@ -334,8 +404,8 @@ def page_portfolio() -> None:
     st.markdown(
         f"""
         <div class="pf-wrap">
-        <h1 style="font-family:Georgia,serif;color:#1a2b4b;font-size:2rem;margin:0 0 8px 0;">Portfolio</h1>
-        <p class="pf-sub">U.S. demo holdings (stocks + mutual funds), USD — illustrative metrics only.</p>
+        <h1 style="font-family:Georgia,serif;color:#1a2b4b;font-size:2rem;margin:0 0 8px 0;">Portfolio · {title_suffix}</h1>
+        <p class="pf-sub">U.S. demo holdings — {sub_suffix}, USD — illustrative metrics only.</p>
         <div class="pf-metric-row">
           <div class="pf-metric-block">
             <div class="pf-metric-label">Current value</div>
@@ -377,29 +447,23 @@ def page_portfolio() -> None:
                 sel_range = st.selectbox("Range", range_options, index=0, key="pf_perf_range_sb")
             perf_df = filter_performance(perf_full, sel_range)
             st.plotly_chart(chart_performance(perf_df), use_container_width=True)
+            st.caption(
+                "Chart uses the **full** demo portfolio path; headline cards above match your **"
+                + title_suffix.lower()
+                + "** selection."
+            )
             st.markdown(
-                '<p class="pf-footlink">See performance details — explore scenarios in AI Rebalance →</p>',
+                '<p class="pf-footlink">See performance details — explore scenarios under tools&amp;resources →</p>',
                 unsafe_allow_html=True,
             )
 
     with col_right:
         with st.container(border=True):
             st.markdown('<p class="pf-serif">Allocation</p>', unsafe_allow_html=True)
-            alloc_mode = st.radio(
-                "View",
-                ["By asset", "By investment type"],
-                horizontal=True,
-                key="pf_alloc_mode",
-                label_visibility="collapsed",
-            )
-            if alloc_mode == "By asset":
-                adf = allocation_by_asset()
-                labels = adf["label"].tolist()
-                values = adf["value"].tolist()
-            else:
-                adf = allocation_by_investment_type()
-                labels = adf["label"].tolist()
-                values = adf["value"].tolist()
+            st.caption(f"Within **{title_suffix.lower()}** — share of each demo holding.")
+            adf = allocation_by_focus(focus_key)
+            labels = adf["label"].tolist()
+            values = adf["value"].tolist()
             st.plotly_chart(chart_donut(labels, values, title=None), use_container_width=True)
             st.markdown(
                 '<p class="pf-footlink">See detailed breakdown — same demo holdings as portfolio metrics</p>',
@@ -438,7 +502,7 @@ def page_portfolio() -> None:
                 "Bars show **unrealized** long-term vs short-term P/L on holdings (educational split only)."
             )
             st.markdown(
-                '<p class="pf-footlink">For practice moves, try AI Rebalance</p>',
+                '<p class="pf-footlink">For practice moves, open <strong>tools&amp;resources</strong> → AI Rebalance</p>',
                 unsafe_allow_html=True,
             )
 
@@ -453,7 +517,10 @@ def page_portfolio() -> None:
                 label_visibility="collapsed",
             )
             st.caption(f"Window: **{dur}** (illustrative move on demo weights)")
-            for row in returns_by_type(dur):
+            ret_rows = returns_by_type(dur)
+            want_name = "Stocks" if focus_key == "stocks" else "Mutual funds"
+            ret_rows = [r for r in ret_rows if r["name"] == want_name]
+            for row in ret_rows:
                 if row["in_portfolio"]:
                     chg = float(row["change"] or 0)
                     pct = float(row["pct"] or 0)
@@ -496,7 +563,7 @@ def _greeting_bullets() -> str:
     return (
         "- Ask any **what-if** about investing in plain words.\n"
         "- Answers show as **bullet points** so they’re easy to scan.\n"
-        "- For a full practice rebalance, open **AI Rebalance**.\n"
+        "- For a full practice rebalance, open **tools&resources** → AI Rebalance.\n"
         "- Switch to **Goal coach (chat)** for a short questionnaire + summary."
     )
 
@@ -519,9 +586,27 @@ def _inject_gs_workspace_css() -> None:
             color: #1a1a1a !important;
             background: rgba(255,255,255,0.35) !important;
         }
+        .stApp, [data-testid="stAppViewContainer"], [data-testid="stAppViewContainer"] > div,
+        section.main, section.main > div {
+            background-color: #ffffff !important;
+        }
         .main .block-container {
             font-family: 'Source Sans 3', system-ui, sans-serif !important;
-            background: #f0f2f5 !important;
+            background: #ffffff !important;
+            color: #1a2b4b !important;
+        }
+        section.main p, section.main label, section.main span, section.main .stMarkdown p {
+            color: #334155 !important;
+        }
+        section.main h1, section.main h2, section.main h3 {
+            color: #1a1a1a !important;
+        }
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            background-color: #ffffff !important;
+            border-color: #e2e8f0 !important;
+        }
+        [data-testid="stMetricValue"], [data-testid="stMetricLabel"] {
+            color: #1a2b4b !important;
         }
         h1, h2, h3 { font-family: 'Libre Baskerville', Georgia, serif !important; color: #1a1a1a !important; }
         </style>
@@ -885,10 +970,10 @@ def render_guided_goal_setting() -> None:
 
 def page_agent() -> None:
     _inject_gs_messaging_css()
-    st.header("Agent")
+    st.header("Guided goal setting")
     st.caption(
-        "Both areas use the **Claude API** when `ANTHROPIC_API_KEY` is set in Streamlit secrets; "
-        "otherwise you get clear bullet templates."
+        "Under **agents** — what-if chat plus a structured goal coach. Uses **Claude API** when "
+        "`ANTHROPIC_API_KEY` is set in Streamlit secrets; otherwise you get clear bullet templates."
     )
     sync_anthropic_env_from_secrets()
 
@@ -947,6 +1032,7 @@ def page_agent() -> None:
 
 def page_rebalance() -> None:
     st.header("AI Rebalance (simulation)")
+    st.caption("Under **tools&resources** — practice scenarios on the demo portfolio.")
     st.warning("**Educational simulation — not financial advice.** No real trades.")
 
     if "rebalance_df" not in st.session_state:
@@ -1077,6 +1163,23 @@ def page_rebalance() -> None:
         st.error("This is an educational simulation, not financial advice.")
 
 
+def page_company() -> None:
+    st.header("Company")
+    st.markdown(
+        """
+        **AIChemist** is an educational workspace for exploring how portfolio metrics, guardrailed AI
+        chat, and rebalance simulations can fit together — built for learning and demos, not live trading.
+
+        We focus on clarity: stocks and mutual funds in a transparent demo book, plain-language coaching,
+        and simulations that spell out limits. **We are not a broker, fund sponsor, or registered
+        investment advisor.** Nothing here is personalized advice or an offer to buy or sell securities.
+
+        *This hackathon build is for coursework and presentation; treat all figures and narratives as illustrative.*
+        """
+    )
+    st.caption("Educational context only — not an offer or solicitation.")
+
+
 def main() -> None:
     if not st.session_state.logged_in:
         login_screen()
@@ -1084,26 +1187,47 @@ def main() -> None:
 
     with st.sidebar:
         st.markdown("### Workspace")
-        page = st.radio(
+        nav_main = st.radio(
             "Navigate",
-            ["Portfolio", "Agent", "AI Rebalance"],
+            ["portfolio", "agents", "tools&resources", "company"],
             label_visibility="collapsed",
         )
+        portfolio_focus = "stocks"
+        if nav_main == "portfolio":
+            portfolio_focus = st.radio(
+                "Portfolio",
+                ["stocks", "mutual fund"],
+                horizontal=True,
+                label_visibility="collapsed",
+                key="sidebar_portfolio_focus",
+            )
+        elif nav_main == "agents":
+            st.markdown(
+                "<small><strong>Guided goal setting</strong> — Chat-style questionnaire and summary; "
+                "financial guardrails, not personalized advice.</small>",
+                unsafe_allow_html=True,
+            )
+        elif nav_main == "tools&resources":
+            st.caption("AI Rebalance — what-if scenarios on the demo portfolio (practice only).")
+
         st.divider()
         if st.button("Log out"):
             st.session_state.logged_in = False
+            st.session_state.show_member_login = False
             st.rerun()
         st.caption("Signed in (demo: **admin** / **admin**).")
 
     sync_anthropic_env_from_secrets()
     _inject_gs_workspace_css()
 
-    if page == "Portfolio":
-        page_portfolio()
-    elif page == "Agent":
+    if nav_main == "portfolio":
+        page_portfolio(portfolio_focus)
+    elif nav_main == "agents":
         page_agent()
-    else:
+    elif nav_main == "tools&resources":
         page_rebalance()
+    else:
+        page_company()
 
 
 if __name__ == "__main__":

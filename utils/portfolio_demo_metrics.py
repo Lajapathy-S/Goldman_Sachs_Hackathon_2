@@ -48,6 +48,49 @@ def snapshot() -> dict[str, Any]:
     }
 
 
+def snapshot_for_focus(focus: str) -> dict[str, Any]:
+    """Headline metrics for a subset: focus is 'stocks' or 'mutual_fund' (demo asset_type)."""
+    if focus not in ("stocks", "mutual_fund"):
+        return snapshot()
+    want = "Stock" if focus == "stocks" else "Mutual Fund"
+    holdings = [h for h in DEMO_US_PORTFOLIO if h.get("asset_type") == want]
+    rows = [holding_metrics(h, AS_OF) for h in holdings]
+    if not rows:
+        return snapshot()
+    invested = sum(r["invested_value"] for r in rows)
+    current = sum(r["current_value"] for r in rows)
+    day_chg = current * ONE_DAY_PCT
+    total_gain = current - invested
+    oldest = min(datetime.strptime(str(h["buy_date"])[:10], "%Y-%m-%d").date() for h in holdings)
+    years = max((AS_OF - oldest).days / 365.25, 0.25)
+    cagr = (current / invested) ** (1 / years) - 1 if invested > 0 else 0.0
+    lt_pl = sum(r["unrealized_gain_loss"] for r in rows if r["is_long_term"])
+    st_pl = sum(r["unrealized_gain_loss"] for r in rows if not r["is_long_term"])
+    return {
+        "invested": invested,
+        "current": current,
+        "one_day_change": day_chg,
+        "one_day_pct": ONE_DAY_PCT * 100,
+        "all_time_gain": total_gain,
+        "cagr_pct": cagr * 100,
+        "lt_unrealized_pl": lt_pl,
+        "st_unrealized_pl": st_pl,
+        "as_of": AS_OF,
+    }
+
+
+def allocation_by_focus(focus: str) -> pd.DataFrame:
+    """Per-symbol weights within stocks-only or mutual-fund-only demo holdings."""
+    want = "Stock" if focus == "stocks" else "Mutual Fund"
+    rows = [holding_metrics(h, AS_OF) for h in DEMO_US_PORTFOLIO if h.get("asset_type") == want]
+    return pd.DataFrame(
+        {
+            "label": [r["symbol"] for r in rows],
+            "value": [r["current_value"] for r in rows],
+        }
+    )
+
+
 def performance_monthly() -> pd.DataFrame:
     """Synthetic month-end values ending at modeled current value (educational)."""
     snap = snapshot()

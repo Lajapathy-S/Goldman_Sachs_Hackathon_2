@@ -10,18 +10,49 @@ ACCENT = "#2563eb"
 GREEN = "#0f766e"
 RED = "#b91c1c"
 MUTED = "#64748b"
-BG = "#faf8f5"
+BG = "#ffffff"
+PLOT_BG = "#f8fafc"
+AXIS = "#475569"
+GRID = "#e2e8f0"
+
+
+def _apply_light_chart_theme(fig) -> None:
+    """Force readable light canvas (Streamlit dark theme used to inherit into Plotly)."""
+    fig.update_layout(
+        paper_bgcolor="#ffffff",
+        plot_bgcolor=PLOT_BG,
+        font=dict(color="#334155", family="system-ui, sans-serif", size=12),
+        legend=dict(font=dict(color="#334155")),
+    )
+    fig.update_xaxes(
+        showgrid=True,
+        gridcolor=GRID,
+        zerolinecolor=GRID,
+        linecolor=AXIS,
+        tickfont=dict(color=AXIS),
+        title=dict(font=dict(color=AXIS)),
+    )
+    fig.update_yaxes(
+        showgrid=True,
+        gridcolor=GRID,
+        zerolinecolor=GRID,
+        linecolor=AXIS,
+        tickfont=dict(color=AXIS),
+        title=dict(font=dict(color=AXIS)),
+    )
 
 
 def inject_portfolio_dashboard_css() -> None:
     st.markdown(
         f"""
         <style>
+        .js-plotly-plot .plotly .main-svg {{ background: #ffffff !important; }}
         .pf-wrap {{
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
             color: {NAVY};
             max-width: 1280px;
             margin: 0 auto;
+            background: #ffffff;
         }}
         .pf-serif {{
             font-family: Georgia, "Times New Roman", serif;
@@ -41,10 +72,10 @@ def inject_portfolio_dashboard_css() -> None:
             gap: 28px;
             margin-bottom: 28px;
             padding: 20px 24px;
-            background: #fff;
+            background: #ffffff;
             border-radius: 16px;
-            box-shadow: 0 4px 24px rgba(26, 43, 75, 0.08);
-            border: 1px solid #e8e4df;
+            box-shadow: 0 2px 16px rgba(26, 43, 75, 0.08);
+            border: 1px solid #e2e8f0;
         }}
         .pf-metric-block {{
             flex: 1;
@@ -72,11 +103,11 @@ def inject_portfolio_dashboard_css() -> None:
         .pf-pos {{ color: {GREEN}; font-weight: 600; }}
         .pf-neg {{ color: {RED}; font-weight: 600; }}
         .pf-card {{
-            background: #fff;
+            background: #ffffff;
             border-radius: 16px;
             padding: 20px 22px;
-            box-shadow: 0 4px 24px rgba(26, 43, 75, 0.07);
-            border: 1px solid #e8e4df;
+            box-shadow: 0 2px 14px rgba(26, 43, 75, 0.06);
+            border: 1px solid #e2e8f0;
             height: 100%;
         }}
         .pf-footlink {{
@@ -114,19 +145,16 @@ def chart_performance(df, title: str = "Performance"):
     )
     fig.update_layout(
         title=dict(text=title, font=dict(size=18, color=NAVY, family="Georgia, serif")),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=16, r=16, t=48, b=16),
         height=340,
-        xaxis=dict(showgrid=True, gridcolor="#eee", zeroline=False),
+        xaxis=dict(zeroline=False),
         yaxis=dict(
-            showgrid=True,
-            gridcolor="#eee",
             tickprefix="$",
             tickformat=",.0f",
         ),
         showlegend=False,
     )
+    _apply_light_chart_theme(fig)
     return fig
 
 
@@ -148,16 +176,22 @@ def chart_donut(labels: list[str], values: list[float], title: str | None = None
         ]
     )
     layout = dict(
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=16, r=16, t=24 if not title else 48, b=16),
         height=340,
         showlegend=True,
-        legend=dict(orientation="v", yanchor="middle", y=0.5, x=0.02),
+        legend=dict(
+            orientation="v",
+            yanchor="middle",
+            y=0.5,
+            x=0.02,
+            font=dict(color="#334155"),
+        ),
     )
     if title:
         layout["title"] = dict(text=title, font=dict(size=18, color=NAVY, family="Georgia, serif"))
     fig.update_layout(**layout)
+    fig.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", font=dict(color="#334155"))
+    fig.update_traces(textfont=dict(color="#334155", size=11))
     return fig
 
 
@@ -180,14 +214,13 @@ def chart_transactions(df):
             text="Transactions",
             font=dict(size=18, color=NAVY, family="Georgia, serif"),
         ),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=16, r=16, t=56, b=16),
         height=320,
         xaxis=dict(title=""),
-        yaxis=dict(title="", tickprefix="$", tickformat=",.0f", showgrid=True, gridcolor="#eee"),
+        yaxis=dict(title="", tickprefix="$", tickformat=",.0f"),
         showlegend=False,
     )
+    _apply_light_chart_theme(fig)
     return fig
 
 
@@ -212,19 +245,16 @@ def chart_lt_st(lt: float, st: float, tax_year_label: str):
             text=f"Unrealized gains — {tax_year_label}",
             font=dict(size=18, color=NAVY, family="Georgia, serif"),
         ),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=16, r=48, t=56, b=16),
         height=260,
         xaxis=dict(
             tickprefix="$",
             tickformat=",.0f",
             zeroline=True,
-            zerolinecolor="#ccc",
-            showgrid=True,
-            gridcolor="#eee",
         ),
         yaxis=dict(title=""),
         showlegend=False,
     )
+    _apply_light_chart_theme(fig)
+    fig.update_xaxes(zeroline=True, zerolinewidth=1, zerolinecolor="#cbd5e1")
     return fig
