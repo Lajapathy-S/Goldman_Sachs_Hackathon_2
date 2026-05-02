@@ -117,8 +117,9 @@ def render_health_score_card(health: dict) -> None:
     label_color = str(health.get("color", "#1e3a5f"))
     score = max(0, min(100, score))
 
-    # Map score 0..100 to angle 180..0 degrees for a top semicircle meter.
-    needle_deg = 180.0 - 180.0 * (score / 100.0)
+    # Map score 0..100 to SVG rotation -180..0 degrees (top semicircle).
+    # Negative angles point upward in SVG's y-down coordinate space.
+    needle_deg = 180.0 * (score / 100.0) - 180.0
 
     gauge_html = f"""
     <div style="display:flex;justify-content:center;align-items:center;width:100%;padding-top:4px;">
@@ -156,7 +157,7 @@ def render_health_score_card(health: dict) -> None:
           <circle cx="210" cy="200" r="8" fill="#1e3a5f"></circle>
         </svg>
         <p style="margin:-46px 0 0 0;font-size:2.25rem;font-weight:700;color:{label_color};line-height:1.05;">{label}</p>
-        <p style="margin:4px 0 8px 0;font-size:3.05rem;font-weight:800;color:#1e3a5f;line-height:1;">{score}</p>
+        <p style="margin:4px 0 8px 0;font-size:2.55rem;font-weight:800;color:#1e3a5f;line-height:1;">{score}</p>
       </div>
     </div>
     """
