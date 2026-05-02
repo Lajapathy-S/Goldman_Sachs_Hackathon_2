@@ -23,7 +23,7 @@ from typing import Any
 import pandas as pd
 import streamlit as st
 
-from streamlit_claude_client import goal_coach_reply, resolved_model_name, whatif_reply
+from streamlit_claude_client import goal_coach_reply, whatif_reply
 from streamlit_rebalance import SCENARIO_PROMPTS, run_rebalance, sum_by_type
 
 st.set_page_config(
@@ -226,11 +226,11 @@ def _inject_login_page_css() -> None:
     )
 
 
-def _login_hero_white_html() -> str:
-    """Light hero — white background, navy typography (landing before member sign-in)."""
+def _login_hero_before_cta_html() -> str:
+    """Hero shell + headline + body (CTA is a Streamlit button so it can open login)."""
     return """
 <div style="position:relative;margin:0;font-family:'Source Sans 3',system-ui,sans-serif;
-  background:#ffffff;padding:48px 6vw 56px 6vw;min-height:42vh;border-bottom:1px solid #e2e8f0;">
+  background:#ffffff;padding:48px 6vw 12px 6vw;min-height:42vh;border-bottom:1px solid #e2e8f0;">
   <div style="position:relative;z-index:2;max-width:min(640px,92vw);">
     <h1 style="
       font-family:'Libre Baskerville',Georgia,serif;
@@ -243,20 +243,18 @@ def _login_hero_white_html() -> str:
     <p style="
       font-family:'Source Sans 3',system-ui,sans-serif;
       font-size:1.05rem;line-height:1.65;color:#475569;
-      margin:0 0 28px 0;max-width:540px;
+      margin:0 0 20px 0;max-width:540px;
     ">
       Educational tools for stocks and mutual funds — AI chat with guardrails, goal coaching, and rebalance simulations.
       Not investment advice.
     </p>
-    <div style="
-      display:inline-block;padding:12px 26px;
-      background:#0f172a;color:#ffffff;
-      font-size:0.9rem;font-weight:700;
-      letter-spacing:0.04em;border-radius:2px;
-    ">
-      EXPLORE WORKSPACE
-    </div>
   </div>
+"""
+
+
+def _login_hero_after_cta_html() -> str:
+    """Watermark + close outer hero wrapper (headline block closed in before_cta)."""
+    return """
   <div aria-hidden="true" style="
     position:absolute;right:4vw;top:42%;transform:translateY(-50%);
     font-family:'Libre Baskerville',Georgia,serif;
@@ -268,6 +266,11 @@ def _login_hero_white_html() -> str:
 """
 
 
+def _landing_open_login() -> None:
+    st.session_state.show_member_login = True
+    st.rerun()
+
+
 def login_screen() -> None:
     """Landing (white) first; member login form only after 'Member sign-in'."""
     _inject_login_page_css()
@@ -276,39 +279,56 @@ def login_screen() -> None:
         '<div style="background:#a2b9d6;padding:28px 7vw 30px 7vw;border-bottom:1px solid rgba(26,26,26,0.1);">',
         unsafe_allow_html=True,
     )
-    c_brand, c_nav, c_demo, c_btn = st.columns([1.5, 3.4, 0.65, 1.25], gap="small")
+    c_brand, c_nav, c_btn = st.columns([1.55, 4.0, 1.25], gap="small")
     with c_brand:
         st.markdown(
             '<p style="font-family:Georgia,serif;font-size:1.35rem;font-weight:700;color:#0f172a;margin:0;padding-top:4px;">AIChemist</p>',
             unsafe_allow_html=True,
         )
     with c_nav:
-        st.markdown(
-            """
-            <div class="gs-login-nav" style="padding-top:4px;font-size:0.88rem;font-family:'Source Sans 3',system-ui,sans-serif;">
-            <details name="aichemist-landing-nav">
-              <summary>portfolio ▾</summary>
-              <div class="gs-dd-body">
-                <strong>Stocks</strong> — Demo equity positions, performance, and how they move the mix.<br/><br/>
-                <strong>Mutual funds</strong> — Demo fund holdings and diversification in the sample portfolio.
-              </div>
-            </details>
-            <details name="aichemist-landing-nav">
-              <summary>agents ▾</summary>
-              <div class="gs-dd-body">
-                <strong>Guided goal setting</strong> — A short, chat-style flow that captures your goal, timeline,
-                and comfort with risk, then summarizes trade-offs in plain language (educational only).
-              </div>
-            </details>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    with c_demo:
-        st.markdown(
-            '<p style="margin:0;padding-top:10px;font-size:0.82rem;color:#334155;">Demo</p>',
-            unsafe_allow_html=True,
-        )
+        pn1, pn2, _ = st.columns([1.05, 1.05, 4.5], gap="small")
+        if hasattr(st, "popover"):
+            with pn1:
+                with st.popover("portfolio ▾"):
+                    st.caption(
+                        "Demo equity vs fund slices — available after you sign in.",
+                    )
+                    st.markdown("**Stocks** — Positions, performance, and mix.")
+                    if st.button("Stocks — go to sign-in", key="land_pf_stocks", use_container_width=True):
+                        _landing_open_login()
+                    st.markdown("**Mutual funds** — Holdings and diversification.")
+                    if st.button("Mutual funds — go to sign-in", key="land_pf_mf", use_container_width=True):
+                        _landing_open_login()
+            with pn2:
+                with st.popover("agents ▾"):
+                    st.caption("REBA + Goal coach — available after you sign in.")
+                    st.markdown(
+                        "**Guided goal setting** — Short flow for goals, timeline, and risk comfort."
+                    )
+                    if st.button("Goal coach — go to sign-in", key="land_ag_goal", use_container_width=True):
+                        _landing_open_login()
+                    st.markdown("**REBA** — Finance-only what-if chat.")
+                    if st.button("REBA — go to sign-in", key="land_ag_rb", use_container_width=True):
+                        _landing_open_login()
+        else:
+            with pn1:
+                with st.expander("portfolio ▾", expanded=False):
+                    st.markdown("**Stocks** — Positions, performance, and mix.")
+                    if st.button("Stocks — go to sign-in", key="land_pf_stocks_e", use_container_width=True):
+                        _landing_open_login()
+                    st.markdown("**Mutual funds** — Holdings and diversification.")
+                    if st.button("Mutual funds — go to sign-in", key="land_pf_mf_e", use_container_width=True):
+                        _landing_open_login()
+            with pn2:
+                with st.expander("agents ▾", expanded=False):
+                    st.markdown(
+                        "**Guided goal setting** — Short flow for goals, timeline, and risk comfort."
+                    )
+                    if st.button("Goal coach — go to sign-in", key="land_ag_goal_e", use_container_width=True):
+                        _landing_open_login()
+                    st.markdown("**REBA** — Finance-only what-if chat.")
+                    if st.button("REBA — go to sign-in", key="land_ag_rb_e", use_container_width=True):
+                        _landing_open_login()
     with c_btn:
         st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
         if st.button("Member sign-in", key="login_open_member_panel", use_container_width=True):
@@ -317,8 +337,16 @@ def login_screen() -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
     if not st.session_state.show_member_login:
-        st.markdown(_login_hero_white_html(), unsafe_allow_html=True)
-        st.caption("Click **Member sign-in** above to open the demo login. Educational only — not financial advice.")
+        st.markdown(_login_hero_before_cta_html(), unsafe_allow_html=True)
+        _, hero_cta_col, _ = st.columns([0.5, 3.2, 1.0])
+        with hero_cta_col:
+            if st.button("EXPLORE WORKSPACE", type="primary", key="hero_explore_ws"):
+                _landing_open_login()
+        st.markdown(_login_hero_after_cta_html(), unsafe_allow_html=True)
+        st.caption(
+            "Use **EXPLORE WORKSPACE**, **Member sign-in**, or any option under **portfolio** / **agents** to sign in. "
+            "Educational only — not financial advice."
+        )
         return
 
     st.markdown('<div class="gs-login-strip">', unsafe_allow_html=True)
@@ -366,7 +394,7 @@ def login_screen() -> None:
     st.markdown("</div>", unsafe_allow_html=True)
 
 
-def page_portfolio(portfolio_focus: str) -> None:
+def page_portfolio() -> None:
     from streamlit_portfolio_ui import (
         chart_donut,
         chart_lt_st,
@@ -376,23 +404,17 @@ def page_portfolio(portfolio_focus: str) -> None:
         show_plotly_chart,
     )
     from utils.portfolio_demo_metrics import (
-        allocation_by_focus,
+        allocation_by_asset,
+        allocation_by_investment_type,
         filter_performance,
         performance_monthly,
         returns_by_type,
-        snapshot_for_focus,
+        snapshot,
         transactions_annual,
     )
 
     inject_portfolio_dashboard_css()
-    focus_key = "stocks" if portfolio_focus == "stocks" else "mutual_fund"
-    snap = snapshot_for_focus(focus_key)
-    title_suffix = "Stocks" if focus_key == "stocks" else "Mutual funds"
-    sub_suffix = (
-        "demo equity slice"
-        if focus_key == "stocks"
-        else "demo mutual-fund slice"
-    )
+    snap = snapshot()
     invested = snap["invested"]
     current = snap["current"]
     day = snap["one_day_change"]
@@ -405,8 +427,8 @@ def page_portfolio(portfolio_focus: str) -> None:
     st.markdown(
         f"""
         <div class="pf-wrap">
-        <h1 style="font-family:Georgia,serif;color:#1a2b4b;font-size:2rem;margin:0 0 8px 0;">Portfolio · {title_suffix}</h1>
-        <p class="pf-sub">U.S. demo holdings — {sub_suffix}, USD — illustrative metrics only.</p>
+        <h1 style="font-family:Georgia,serif;color:#1a2b4b;font-size:2rem;margin:0 0 8px 0;">Portfolio</h1>
+        <p class="pf-sub">All holdings (stocks + mutual funds), USD — illustrative sample only.</p>
         <div class="pf-metric-row">
           <div class="pf-metric-block">
             <div class="pf-metric-label">Current value</div>
@@ -416,12 +438,12 @@ def page_portfolio(portfolio_focus: str) -> None:
           <div class="pf-metric-block">
             <div class="pf-metric-label">1 day</div>
             <div class="pf-metric-main {day_cls}">${day:,.0f} &nbsp; ({day_pct:+.2f}%)</div>
-            <div class="pf-metric-side">Demo move — not live quotes</div>
+            <div class="pf-metric-side">Illustrative 1-day move — not live quotes</div>
           </div>
           <div class="pf-metric-block">
             <div class="pf-metric-label">All-time returns</div>
             <div class="pf-metric-main {gain_cls}">${gain:+,.0f}</div>
-            <div class="pf-metric-side {gain_cls}">{cagr:.1f}% p.a. (demo CAGR)</div>
+            <div class="pf-metric-side {gain_cls}">{cagr:.1f}% p.a. (sample CAGR)</div>
           </div>
         </div>
         </div>
@@ -447,12 +469,10 @@ def page_portfolio(portfolio_focus: str) -> None:
             else:
                 sel_range = st.selectbox("Range", range_options, index=0, key="pf_perf_range_sb")
             perf_df = filter_performance(perf_full, sel_range)
+            if perf_df.empty or len(perf_df) < 2:
+                perf_df = perf_full
             show_plotly_chart(chart_performance(perf_df), key="pf_perf_chart")
-            st.caption(
-                "Chart uses the **full** demo portfolio path; headline cards above match your **"
-                + title_suffix.lower()
-                + "** selection."
-            )
+            st.caption("Sample performance path for the **combined** portfolio above (illustrative).")
             st.markdown(
                 '<p class="pf-footlink">See performance details — explore scenarios in <strong>AI Rebalance</strong> →</p>',
                 unsafe_allow_html=True,
@@ -461,11 +481,25 @@ def page_portfolio(portfolio_focus: str) -> None:
     with col_right:
         with st.container(border=True):
             st.markdown('<p class="pf-serif">Allocation</p>', unsafe_allow_html=True)
-            st.caption(f"Within **{title_suffix.lower()}** — share of each demo holding.")
-            adf = allocation_by_focus(focus_key)
+            alloc_mode = st.radio(
+                "View",
+                ["By holding", "By investment type"],
+                horizontal=True,
+                key="pf_alloc_unified",
+                label_visibility="collapsed",
+            )
+            if alloc_mode == "By holding":
+                st.caption("Each **ticker / fund symbol** in the sample book.")
+                adf = allocation_by_asset()
+            else:
+                st.caption("**Stocks** vs **mutual funds** in the combined portfolio.")
+                adf = allocation_by_investment_type()
             labels = adf["label"].tolist()
-            values = adf["value"].tolist()
-            show_plotly_chart(chart_donut(labels, values, title=None), key="pf_alloc_chart")
+            values = [float(x) for x in adf["value"].tolist()]
+            if not labels or not values or sum(abs(v) for v in values) < 1e-9:
+                st.warning("No allocation data to chart.")
+            else:
+                show_plotly_chart(chart_donut(labels, values, title=None), key="pf_alloc_chart")
             st.markdown(
                 '<p class="pf-footlink">See detailed breakdown — same demo holdings as portfolio metrics</p>',
                 unsafe_allow_html=True,
@@ -477,7 +511,7 @@ def page_portfolio(portfolio_focus: str) -> None:
         with st.container(border=True):
             st.markdown('<p class="pf-serif">Transactions</p>', unsafe_allow_html=True)
             st.markdown(
-                '<p class="pf-sub" style="margin-top:-8px;">Amount invested annually, net of withdrawals (demo)</p>',
+                '<p class="pf-sub" style="margin-top:-8px;">Amount invested annually, net of withdrawals (sample)</p>',
                 unsafe_allow_html=True,
             )
             tx = transactions_annual()
@@ -517,10 +551,8 @@ def page_portfolio(portfolio_focus: str) -> None:
                 key="pf_ret_dur",
                 label_visibility="collapsed",
             )
-            st.caption(f"Window: **{dur}** (illustrative move on demo weights)")
+            st.caption(f"Window: **{dur}** (illustrative move on sample weights)")
             ret_rows = returns_by_type(dur)
-            want_name = "Stocks" if focus_key == "stocks" else "Mutual funds"
-            ret_rows = [r for r in ret_rows if r["name"] == want_name]
             for row in ret_rows:
                 if row["in_portfolio"]:
                     chg = float(row["change"] or 0)
@@ -537,7 +569,7 @@ def page_portfolio(portfolio_focus: str) -> None:
                 else:
                     st.markdown(
                         f'<p style="margin:14px 0 4px 0;font-weight:600;color:#1a2b4b;">{row["name"]}</p>'
-                        f'<p style="margin:0;color:#94a3b8;font-size:0.9rem;">Not in this demo portfolio</p>',
+                        f'<p style="margin:0;color:#94a3b8;font-size:0.9rem;">Not in this sample portfolio</p>',
                         unsafe_allow_html=True,
                     )
 
@@ -554,7 +586,7 @@ def page_portfolio(portfolio_focus: str) -> None:
 
 def _guardrail_bullets() -> str:
     return (
-        "- **RB buddy** only answers **finance and investing** questions (money, markets, goals, risk, taxes at a high level).\n"
+        "- **REBA** only answers **finance and investing** questions (money, markets, goals, risk, taxes at a high level).\n"
         "- I can’t help with coding, homework, sports, recipes, health, politics, or general chat.\n"
         "- Try a **what if** about markets, inflation, withdrawals, or saving for a goal.\n"
         "- Example: *What if the market drops by 20%?*"
@@ -563,7 +595,7 @@ def _guardrail_bullets() -> str:
 
 def _greeting_bullets() -> str:
     return (
-        "- I’m **RB buddy** — ask any **finance or investing** question in plain words.\n"
+        "- I’m **REBA** — ask any **finance or investing** question in plain words.\n"
         "- Replies are **bullet points** so they’re easy to scan.\n"
         "- For a full practice rebalance, open **AI Rebalance** in the sidebar.\n"
         "- Switch to **Goal coach (chat)** for a short questionnaire + summary."
@@ -685,7 +717,7 @@ def _goal_chat_guardrail() -> str:
     return (
         "- I stay in **money and goal** territory — investing, saving, risk, and time horizon.\n"
         "- I can’t help with general chit-chat, coding, recipes, or unrelated topics here.\n"
-        "- Tap **Start conversation** to begin the questionnaire, or open **RB buddy** for market “what if” questions.\n"
+        "- Tap **Start conversation** to begin the questionnaire, or open **REBA** for market “what if” questions.\n"
         "- Everything here is **educational**, not a recommendation to buy or sell anything."
     )
 
@@ -694,7 +726,7 @@ def _goal_chat_finish_questionnaire_hint() -> str:
     return (
         "- I’m in the middle of your **goal questionnaire** — use the **options and buttons** just above to continue.\n"
         "- After your summary, you can use the **follow-up** field (finance topics only).\n"
-        "- For open-ended “what if” questions, **RB buddy** works great too."
+        "- For open-ended “what if” questions, **REBA** works great too."
     )
 
 
@@ -734,7 +766,7 @@ def _goal_followup_reply(user_text: str) -> None:
                 "- You’ve finished the goal questionnaire — nice work.\n"
                 "- Ask a **what-if** about markets, inflation, or withdrawals in plain words.\n"
                 "- I’ll answer in **bullet points** so it’s easy to scan.\n"
-                "- Or switch to **RB buddy** for the same style without the goal recap.",
+                "- Or switch to **REBA** for the same style without the goal recap.",
             )
         )
         return
@@ -818,6 +850,9 @@ def render_guided_goal_setting() -> None:
         if st.button("Start conversation", type="primary", key="g_begin"):
             st.session_state.goal_claude_summary = None
             st.session_state.goal_claude_source = None
+            st.session_state.pop("_gc_main_goal", None)
+            st.session_state.pop("_gc_years", None)
+            st.session_state.pop("g_comfort", None)
             _goal_begin_conversation()
             st.rerun()
 
@@ -836,10 +871,14 @@ def render_guided_goal_setting() -> None:
         col1, col2 = st.columns(2)
         if col1.button("Back", key="g_b1"):
             _goal_chat_pop_last_turn()
+            st.session_state.pop("_gc_main_goal", None)
             st.session_state.goal_step = 0
             st.rerun()
         if col2.button("Next", key="g_n1"):
-            lbl = goal_labels[st.session_state.goal_main]
+            # Lock choice: step-1 radio is unmounted on later steps; `goal_main` can revert to default.
+            main_key = st.session_state.goal_main
+            st.session_state["_gc_main_goal"] = main_key
+            lbl = goal_labels[main_key]
             _goal_append_user_assistant(
                 f"I’m mainly investing for: **{lbl}**.",
                 "**Question 2 of 3:** Roughly **when** will you need most of this money?\n\n"
@@ -860,10 +899,12 @@ def render_guided_goal_setting() -> None:
         col1, col2 = st.columns(2)
         if col1.button("Back", key="g_b2"):
             _goal_chat_pop_last_turn()
+            st.session_state.pop("_gc_years", None)
             st.session_state.goal_step = 1
             st.rerun()
         if col2.button("Next", key="g_n2"):
-            y = st.session_state.goal_years
+            y = int(st.session_state.goal_years)
+            st.session_state["_gc_years"] = y
             _goal_append_user_assistant(
                 f"I’m thinking about a horizon of about **{y} years**.",
                 "**Question 3 of 3:** If your portfolio dropped about **20%** in a tough year, what would you lean toward?\n\n"
@@ -873,7 +914,9 @@ def render_guided_goal_setting() -> None:
             st.rerun()
 
     elif step == 3:
-        st.session_state.goal_comfort = st.radio(
+        if "g_comfort" not in st.session_state:
+            st.session_state.g_comfort = st.session_state.get("goal_comfort", "hold")
+        st.radio(
             "Your reaction if markets dropped ~20%",
             list(comfort_labels.keys()),
             format_func=lambda k: comfort_labels[k],
@@ -886,18 +929,21 @@ def render_guided_goal_setting() -> None:
             st.session_state.goal_step = 2
             st.rerun()
         if col2.button("Get my summary", type="primary", key="g_save"):
-            c = st.session_state.goal_comfort
+            main_key = st.session_state.get("_gc_main_goal")
+            if not main_key or main_key not in goal_labels:
+                main_key = st.session_state.get("goal_main", "retirement")
+            y = int(st.session_state.get("_gc_years", st.session_state.goal_years))
+            c = st.session_state.get("g_comfort", "hold")
             risk = "Cautious" if c == "sell" else "Balanced" if c == "hold" else "Growth-minded"
             profile = {
-                "mainGoal": st.session_state.goal_main,
-                "mainGoalLabel": goal_labels[st.session_state.goal_main],
-                "years": st.session_state.goal_years,
+                "mainGoal": main_key,
+                "mainGoalLabel": goal_labels[main_key],
+                "years": y,
                 "comfort": c,
                 "riskLabel": risk,
             }
-            main_lbl = goal_labels[st.session_state.goal_main]
+            main_lbl = goal_labels[main_key]
             comfort_lbl = comfort_labels[c]
-            y = st.session_state.goal_years
             user_recap = (
                 f"**My answers:** Goal — {main_lbl}; horizon — **{y} years**; "
                 f"if the market dropped ~20% — *{comfort_lbl}*"
@@ -930,8 +976,6 @@ def render_guided_goal_setting() -> None:
                 "Claude couldn’t generate the summary — showing the built-in template. "
                 + str(st.session_state["_goal_coach_api_error"])
             )
-        with st.expander("View saved profile (JSON)"):
-            st.json(json.loads(st.session_state.goal_saved))
         src = st.session_state.get("goal_claude_source") or "fallback"
         st.caption(f"Summary source: **{'Claude API' if src == 'claude' else 'Built-in template'}**")
         if st.session_state.get("_goal_followup_api_error"):
@@ -954,6 +998,9 @@ def render_guided_goal_setting() -> None:
             st.session_state.goal_step = 0
             st.session_state.goal_claude_summary = None
             st.session_state.goal_claude_source = None
+            st.session_state.pop("_gc_main_goal", None)
+            st.session_state.pop("_gc_years", None)
+            st.session_state.pop("g_comfort", None)
             st.session_state.goal_chat_messages = [("assistant", GOAL_COACH_WELCOME)]
             st.rerun()
 
@@ -963,28 +1010,19 @@ def render_guided_goal_setting() -> None:
 
 def page_agent() -> None:
     _inject_gs_messaging_css()
-    st.header("agents")
+    st.header("Agents")
     st.caption(
-        "**RB buddy** (finance-only chat) plus **Goal coach** for a structured questionnaire. Uses **Claude API** when "
-        "`ANTHROPIC_API_KEY` is set in Streamlit secrets; otherwise you get clear bullet templates."
+        "**REBA** (finance-only chat) plus **Goal coach** for a structured questionnaire."
     )
     sync_anthropic_env_from_secrets()
 
-    tab_chat, tab_goals = st.tabs(["RB buddy", "Goal coach (chat)"])
+    tab_chat, tab_goals = st.tabs(["REBA", "Goal coach (chat)"])
 
     with tab_chat:
-        st.subheader("RB buddy")
-        sync_anthropic_env_from_secrets()
-        _ak = get_api_key()
-        if _ak:
-            st.caption(f"Claude API key is set · model **`{resolved_model_name()}`**")
-        else:
-            st.caption(
-                "No **`ANTHROPIC_API_KEY`** in Streamlit secrets — RB buddy uses built-in templates only."
-            )
+        st.subheader("REBA")
         st.write(
             "Chat about **money and investing** only. Replies are **bullet points**. "
-            "Off-topic questions get a short reminder — RB buddy won’t answer non-finance topics."
+            "Off-topic questions get a short reminder — REBA won’t answer non-finance topics."
         )
 
         presets = [
@@ -1015,14 +1053,14 @@ def page_agent() -> None:
                 f"Last reply source: **{'Claude API' if src == 'claude' else 'Built-in template'}**"
             )
         _api_err = st.session_state.get("_last_whatif_api_error")
-        if _ak and src == "fallback" and _api_err:
+        if get_api_key() and src == "fallback" and _api_err:
             st.warning(
                 "The last question used the **built-in template** because the Claude request failed:\n\n"
                 f"`{_api_err}`\n\n"
                 "Check your API key, billing, and that **`ANTHROPIC_MODEL`** (if set) is a current model ID."
             )
 
-        if prompt := st.chat_input("Ask RB buddy a finance question…"):
+        if prompt := st.chat_input("Ask REBA a finance question…"):
             prior = [
                 (r, c)
                 for r, c in st.session_state.agent_messages
@@ -1184,21 +1222,12 @@ def main() -> None:
         st.markdown("### Workspace")
         nav_main = st.radio(
             "Navigate",
-            ["portfolio", "agents", "AI Rebalance"],
+            ["portfolio", "Agents", "AI Rebalance"],
             label_visibility="collapsed",
         )
-        portfolio_focus = "stocks"
-        if nav_main == "portfolio":
-            portfolio_focus = st.radio(
-                "Portfolio",
-                ["stocks", "mutual fund"],
-                horizontal=True,
-                label_visibility="collapsed",
-                key="sidebar_portfolio_focus",
-            )
-        elif nav_main == "agents":
+        if nav_main == "Agents":
             st.markdown(
-                "<small><strong>RB buddy</strong> — Finance-only what-if chat. "
+                "<small><strong>REBA</strong> — Finance-only what-if chat. "
                 "<strong>Goal coach</strong> — questionnaire + summary. Educational only.</small>",
                 unsafe_allow_html=True,
             )
@@ -1216,8 +1245,8 @@ def main() -> None:
     _inject_gs_workspace_css()
 
     if nav_main == "portfolio":
-        page_portfolio(portfolio_focus)
-    elif nav_main == "agents":
+        page_portfolio()
+    elif nav_main == "Agents":
         page_agent()
     else:
         page_rebalance()

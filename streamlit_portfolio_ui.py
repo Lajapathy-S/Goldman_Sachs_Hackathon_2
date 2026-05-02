@@ -6,12 +6,16 @@ import streamlit as st
 
 
 def show_plotly_chart(fig, *, key: str | None = None) -> None:
-    """Render Plotly: theme=None keeps our colors; explicit height avoids content-sized collapse."""
+    """Render Plotly: theme=None keeps our colors; stretch width + fixed height for reliable display."""
     kwargs: dict = {
-        "use_container_width": True,
-        "theme": None,
         "width": "stretch",
-        "height": 400,
+        "height": 420,
+        "theme": None,
+        "config": {
+            "responsive": True,
+            "displayModeBar": True,
+            "displaylogo": False,
+        },
     }
     if key is not None:
         kwargs["key"] = key
