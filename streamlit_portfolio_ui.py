@@ -1,25 +1,16 @@
-"""Charts + CSS for the Streamlit Portfolio dashboard (USD demo)."""
+"""Charts + CSS for the Streamlit Portfolio dashboard (USD demo).
+
+Portfolio charts avoid Plotly/st.plotly_chart because that path embeds Plotly in an
+iframe; many browsers, VPNs, and CSP setups block or strip those embeds, which
+produces empty chart areas even when data is valid. Native Streamlit charts and
+Altair/Vega-Lite render reliably in the same environments.
+"""
 
 from __future__ import annotations
 
+import altair as alt
+import pandas as pd
 import streamlit as st
-
-
-def show_plotly_chart(fig, *, key: str | None = None) -> None:
-    """Render Plotly with explicit sizing so charts stay visible inside columns/containers."""
-    fig.update_layout(autosize=False)
-    kwargs: dict = {
-        "use_container_width": True,
-        "height": 420,
-        "config": {
-            "responsive": True,
-            "displayModeBar": True,
-            "displaylogo": False,
-        },
-    }
-    if key is not None:
-        kwargs["key"] = key
-    st.plotly_chart(fig, **kwargs)
 
 NAVY = "#1a2b4b"
 BLUE = "#1e3a5f"
@@ -27,46 +18,101 @@ ACCENT = "#2563eb"
 GREEN = "#0f766e"
 RED = "#b91c1c"
 MUTED = "#64748b"
-BG = "#ffffff"
-PLOT_BG = "#f8fafc"
-AXIS = "#475569"
-GRID = "#e2e8f0"
+
+ALLOC_COLORS = ["#1e3a5f", "#0f766e", "#457b9d", "#a8dadc", "#e9c46a", "#bc6c25"]
 
 
-def _apply_light_chart_theme(fig) -> None:
-    """Force readable light canvas (Streamlit dark theme used to inherit into Plotly)."""
-    fig.update_layout(
-        paper_bgcolor="#ffffff",
-        plot_bgcolor=PLOT_BG,
-        font=dict(color="#334155", family="system-ui, sans-serif", size=12),
-        legend=dict(font=dict(color="#334155")),
+def render_performance_chart(perf_df: pd.DataFrame) -> None:
+    """Area chart via Streamlit (no Plotly iframe). Theme primaryColor matches portfolio navy."""
+    work = perf_df[["Month", "Value"]].copy()
+    st.area_chart(
+        work,
+        x="Month",
+        y="Value",
+        height=400,
+        width="stretch",
     )
-    fig.update_xaxes(
-        showgrid=True,
-        gridcolor=GRID,
-        zerolinecolor=GRID,
-        linecolor=AXIS,
-        tickfont=dict(color=AXIS),
-        title=dict(font=dict(color=AXIS)),
+
+
+def render_allocation_chart(adf: pd.DataFrame) -> None:
+    """Donut via Altair (Vega-Lite); matches navy / teal palette."""
+    df = adf.copy()
+    total = float(df["value"].sum()) or 1.0
+    df["pct"] = df["value"] / total * 100.0
+    n = len(df)
+    colors = (ALLOC_COLORS * (1 + n // len(ALLOC_COLORS)))[:n]
+    chart = (
+        alt.Chart(df)
+        .mark_arc(innerRadius=70, outerRadius=110, stroke="#ffffff", strokeWidth=2)
+        .encode(
+            theta=alt.Theta("value:Q", stack=True),
+            color=alt.Color(
+                "label:N",
+                scale=alt.Scale(domain=df["label"].tolist(), range=colors),
+                legend=alt.Legend(orient="left", title=None, labelLimit=220),
+            ),
+            tooltip=[
+                alt.Tooltip("label:N", title="Holding"),
+                alt.Tooltip("value:Q", format="$,.0f", title="Value (USD)"),
+                alt.Tooltip("pct:Q", format=".1f", title="Weight %"),
+            ],
+        )
+        .properties(height=380, background="white")
     )
-    fig.update_yaxes(
-        showgrid=True,
-        gridcolor=GRID,
-        zerolinecolor=GRID,
-        linecolor=AXIS,
-        tickfont=dict(color=AXIS),
-        title=dict(font=dict(color=AXIS)),
+    st.altair_chart(chart, use_container_width=True)
+
+
+def render_transactions_chart(tx: pd.DataFrame) -> None:
+    st.bar_chart(
+        tx,
+        x="Year",
+        y="Net invested",
+        height=340,
+        width="stretch",
     )
+
+
+def render_unrealized_chart(lt: float, st_pl: float) -> None:
+    df = pd.DataFrame(
+        {
+            "bucket": ["Short-term unrealized", "Long-term unrealized"],
+            "amount": [st_pl, lt],
+        }
+    )
+    c_st = RED if st_pl < 0 else BLUE
+    c_lt = GREEN if lt >= 0 else RED
+    df["fill"] = [c_st, c_lt]
+    chart = (
+        alt.Chart(df)
+        .mark_bar()
+        .encode(
+            x=alt.X("amount:Q", axis=alt.Axis(format="$,.0f", title=None)),
+            y=alt.Y("bucket:N", sort=None, title=None),
+            color=alt.Color("fill:N", scale=None, legend=None),
+            tooltip=[
+                alt.Tooltip("bucket:N", title="Bucket"),
+                alt.Tooltip("amount:Q", format="$,.0f", title="Amount (USD)"),
+            ],
+        )
+        .properties(height=300, background="white")
+    )
+    st.altair_chart(chart, use_container_width=True)
 
 
 def inject_portfolio_dashboard_css() -> None:
     st.markdown(
         f"""
         <style>
-        .js-plotly-plot .plotly .main-svg {{ background: #ffffff !important; }}
-        [data-testid="stPlotlyChart"] {{ min-height: 400px !important; }}
-        [data-testid="stPlotlyChart"] > div {{ min-height: 380px; }}
-        iframe[title="plotly"] {{ min-height: 360px; }}
+        /* Native + Vega charts: reserve vertical space inside bordered cards */
+        [data-testid="stVegaLiteChart"],
+        [data-testid="stArrowVegaLiteChart"] {{
+            min-height: 320px !important;
+        }}
+        div[data-testid="stAreaChart"],
+        div[data-testid="stBarChart"],
+        div[data-testid="stLineChart"] {{
+            min-height: 320px;
+        }}
         .pf-wrap {{
             font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
             color: {NAVY};
@@ -146,142 +192,3 @@ def inject_portfolio_dashboard_css() -> None:
         """,
         unsafe_allow_html=True,
     )
-
-
-def chart_performance(df, title: str = "Performance"):
-    import plotly.graph_objects as go
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=df["Month"],
-            y=df["Value"],
-            mode="lines",
-            line=dict(color=BLUE, width=3),
-            fill="tozeroy",
-            fillcolor="rgba(30, 58, 95, 0.12)",
-            name="Value",
-            hovertemplate="%{x|%b %Y}<br>$%{y:,.0f}<extra></extra>",
-        )
-    )
-    fig.update_layout(
-        title=dict(text=title, font=dict(size=18, color=NAVY, family="Georgia, serif")),
-        margin=dict(l=16, r=16, t=48, b=16),
-        height=380,
-        autosize=False,
-        xaxis=dict(zeroline=False),
-        yaxis=dict(
-            tickprefix="$",
-            tickformat=",.0f",
-            rangemode="tozero",
-        ),
-        showlegend=False,
-    )
-    _apply_light_chart_theme(fig)
-    return fig
-
-
-def chart_donut(labels: list[str], values: list[float], title: str | None = None):
-    import plotly.graph_objects as go
-
-    colors = ["#1e3a5f", "#2d6a4f", "#457b9d", "#a8dadc", "#e9c46a", "#bc6c25"]
-    fig = go.Figure(
-        data=[
-            go.Pie(
-                labels=labels,
-                values=values,
-                hole=0.58,
-                marker=dict(colors=colors[: len(labels)], line=dict(color="#ffffff", width=2)),
-                textinfo="label+percent",
-                textposition="inside",
-                insidetextorientation="horizontal",
-                sort=False,
-            )
-        ]
-    )
-    layout = dict(
-        margin=dict(l=16, r=16, t=24 if not title else 48, b=16),
-        height=380,
-        autosize=False,
-        showlegend=True,
-        legend=dict(
-            orientation="v",
-            yanchor="middle",
-            y=0.5,
-            x=0.02,
-            font=dict(color="#334155"),
-        ),
-    )
-    if title:
-        layout["title"] = dict(text=title, font=dict(size=18, color=NAVY, family="Georgia, serif"))
-    fig.update_layout(**layout)
-    fig.update_layout(paper_bgcolor="#ffffff", plot_bgcolor="#ffffff", font=dict(color="#334155"))
-    fig.update_traces(textfont=dict(color="#334155", size=11))
-    return fig
-
-
-def chart_transactions(df):
-    import plotly.graph_objects as go
-
-    fig = go.Figure(
-        data=[
-            go.Bar(
-                x=df["Year"],
-                y=df["Net invested"],
-                marker_color=BLUE,
-                text=df["Net invested"].map(lambda v: f"${v:,.0f}"),
-                textposition="outside",
-            )
-        ]
-    )
-    fig.update_layout(
-        title=dict(
-            text="Transactions",
-            font=dict(size=18, color=NAVY, family="Georgia, serif"),
-        ),
-        margin=dict(l=16, r=16, t=56, b=16),
-        height=360,
-        autosize=False,
-        xaxis=dict(title=""),
-        yaxis=dict(title="", tickprefix="$", tickformat=",.0f"),
-        showlegend=False,
-    )
-    _apply_light_chart_theme(fig)
-    return fig
-
-
-def chart_lt_st(lt: float, st: float, tax_year_label: str):
-    import plotly.graph_objects as go
-
-    categories = ["Short-term unrealized", "Long-term unrealized"]
-    values = [st, lt]
-    colors = [RED if st < 0 else BLUE, GREEN if lt >= 0 else RED]
-    fig = go.Figure(
-        go.Bar(
-            y=categories,
-            x=values,
-            orientation="h",
-            marker_color=colors,
-            text=[f"${v:,.0f}" for v in values],
-            textposition="outside",
-        )
-    )
-    fig.update_layout(
-        title=dict(
-            text=f"Unrealized gains — {tax_year_label}",
-            font=dict(size=18, color=NAVY, family="Georgia, serif"),
-        ),
-        margin=dict(l=16, r=48, t=56, b=16),
-        height=320,
-        autosize=False,
-        xaxis=dict(
-            tickprefix="$",
-            tickformat=",.0f",
-            zeroline=True,
-        ),
-        yaxis=dict(title=""),
-        showlegend=False,
-    )
-    _apply_light_chart_theme(fig)
-    fig.update_xaxes(zeroline=True, zerolinewidth=1, zerolinecolor="#cbd5e1")
-    return fig

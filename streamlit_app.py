@@ -363,12 +363,11 @@ def login_screen() -> None:
 
 def page_portfolio() -> None:
     from streamlit_portfolio_ui import (
-        chart_donut,
-        chart_lt_st,
-        chart_performance,
-        chart_transactions,
         inject_portfolio_dashboard_css,
-        show_plotly_chart,
+        render_allocation_chart,
+        render_performance_chart,
+        render_transactions_chart,
+        render_unrealized_chart,
     )
     from utils.portfolio_demo_metrics import (
         allocation_by_asset,
@@ -438,7 +437,7 @@ def page_portfolio() -> None:
             perf_df = filter_performance(perf_full, sel_range)
             if perf_df.empty or len(perf_df) < 2:
                 perf_df = perf_full
-            show_plotly_chart(chart_performance(perf_df), key="pf_perf_chart")
+            render_performance_chart(perf_df)
             st.caption("Sample performance path for the **combined** portfolio above (illustrative).")
             st.markdown(
                 '<p class="pf-footlink">See performance details — explore scenarios in <strong>AI Rebalance</strong> →</p>',
@@ -466,7 +465,7 @@ def page_portfolio() -> None:
             if not labels or not values or sum(abs(v) for v in values) < 1e-9:
                 st.warning("No allocation data to chart.")
             else:
-                show_plotly_chart(chart_donut(labels, values, title=None), key="pf_alloc_chart")
+                render_allocation_chart(adf)
             st.markdown(
                 '<p class="pf-footlink">See detailed breakdown — same sample holdings as portfolio metrics</p>',
                 unsafe_allow_html=True,
@@ -482,7 +481,7 @@ def page_portfolio() -> None:
                 unsafe_allow_html=True,
             )
             tx = transactions_annual()
-            show_plotly_chart(chart_transactions(tx), key="pf_tx_chart")
+            render_transactions_chart(tx)
             st.markdown(
                 '<p class="pf-footlink">See all transactions — not available in this prototype</p>',
                 unsafe_allow_html=True,
@@ -496,10 +495,7 @@ def page_portfolio() -> None:
                 f'<p class="pf-sub" style="margin-top:-8px;">CY {ty}: unrealized buckets (educational)</p>',
                 unsafe_allow_html=True,
             )
-            show_plotly_chart(
-                chart_lt_st(snap["lt_unrealized_pl"], snap["st_unrealized_pl"], f"CY {ty}"),
-                key="pf_ltst_chart",
-            )
+            render_unrealized_chart(snap["lt_unrealized_pl"], snap["st_unrealized_pl"])
             st.caption(
                 "Bars show **unrealized** long-term vs short-term P/L on holdings (educational split only)."
             )
