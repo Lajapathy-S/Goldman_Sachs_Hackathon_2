@@ -8,9 +8,13 @@ Altair/Vega-Lite render reliably in the same environments.
 
 from __future__ import annotations
 
-import altair as alt
 import pandas as pd
 import streamlit as st
+
+try:
+    import altair as alt
+except Exception:
+    alt = None
 
 NAVY = "#1a2b4b"
 BLUE = "#1e3a5f"
@@ -39,6 +43,9 @@ def render_allocation_chart(adf: pd.DataFrame) -> None:
     df = adf.copy()
     total = float(df["value"].sum()) or 1.0
     df["pct"] = df["value"] / total * 100.0
+    if alt is None:
+        st.bar_chart(df.set_index("label")[["pct"]], height=360, width="stretch")
+        return
     n = len(df)
     colors = (ALLOC_COLORS * (1 + n // len(ALLOC_COLORS)))[:n]
     chart = (
@@ -79,6 +86,9 @@ def render_unrealized_chart(lt: float, st_pl: float) -> None:
             "amount": [st_pl, lt],
         }
     )
+    if alt is None:
+        st.bar_chart(df.set_index("bucket")[["amount"]], height=300, width="stretch")
+        return
     c_st = RED if st_pl < 0 else BLUE
     c_lt = GREEN if lt >= 0 else RED
     df["fill"] = [c_st, c_lt]
@@ -104,6 +114,15 @@ def render_health_score_card(health: dict) -> None:
     score = int(health.get("score", 0))
     label = str(health.get("label", "Unknown"))
     label_color = str(health.get("color", "#1e3a5f"))
+    if alt is None:
+        st.markdown(
+            f'<p style="margin:4px 0 2px 0;font-size:2.3rem;font-weight:800;color:#1e3a5f;">{score}</p>'
+            f'<p style="margin:0 0 8px 0;font-size:1.05rem;font-weight:700;color:{label_color};">{label}</p>',
+            unsafe_allow_html=True,
+        )
+        st.progress(score / 100.0)
+        st.caption("Health score (0-100) from sample diversification, balance, concentration, and growth trend.")
+        return
 
     base_start = -3.14159
     span = 3.14159
