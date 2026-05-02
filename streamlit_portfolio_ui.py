@@ -110,45 +110,38 @@ def render_unrealized_chart(lt: float, st_pl: float) -> None:
 
 
 def render_health_score_card(health: dict) -> None:
-    """Render a compact portfolio health gauge card."""
+    """Render a centered semicircle meter for portfolio health."""
     score = int(health.get("score", 0))
     label = str(health.get("label", "Unknown"))
     label_color = str(health.get("color", "#1e3a5f"))
-    if alt is None:
-        st.markdown(
-            f'<p style="margin:4px 0 2px 0;font-size:2.3rem;font-weight:800;color:#1e3a5f;">{score}</p>'
-            f'<p style="margin:0 0 8px 0;font-size:1.05rem;font-weight:700;color:{label_color};">{label}</p>',
-            unsafe_allow_html=True,
-        )
-        st.progress(score / 100.0)
-        st.caption("Health score (0-100) from sample diversification, balance, concentration, and growth trend.")
-        return
+    score = max(0, min(100, score))
 
-    base_start = -3.14159
-    span = 3.14159
-    bands = pd.DataFrame(
-        [
-            {"start": base_start, "end": base_start + span * 0.35, "band": "Bad", "color": "#ef4444"},
-            {"start": base_start + span * 0.35, "end": base_start + span * 0.55, "band": "Needs work", "color": "#f59e0b"},
-            {"start": base_start + span * 0.55, "end": base_start + span * 0.75, "band": "Fair", "color": "#facc15"},
-            {"start": base_start + span * 0.75, "end": base_start + span, "band": "Good", "color": "#22c55e"},
-        ]
-    )
-    gauge = (
-        alt.Chart(bands)
-        .mark_arc(innerRadius=62, outerRadius=92)
-        .encode(
-            theta=alt.Theta("start:Q", stack=None),
-            theta2="end:Q",
-            color=alt.Color("color:N", scale=None, legend=None),
-            tooltip=[alt.Tooltip("band:N", title="Range")],
-        )
-        .properties(height=180)
-    )
-    st.altair_chart(gauge, use_container_width=True)
+    # Map score 0..100 to angle 180..0 degrees for a top semicircle meter.
+    needle_deg = 180.0 - 180.0 * (score / 100.0)
+
     st.markdown(
-        f'<p style="margin:-6px 0 2px 0;font-size:2.5rem;font-weight:800;color:#1e3a5f;">{score}</p>'
-        f'<p style="margin:0 0 8px 0;font-size:1.05rem;font-weight:700;color:{label_color};">{label}</p>',
+        f"""
+        <div style="display:flex;justify-content:center;align-items:center;width:100%;padding-top:6px;">
+          <div style="width:min(520px,96%);text-align:center;">
+            <svg viewBox="0 0 320 190" width="100%" height="190" aria-hidden="true">
+              <!-- colored meter bands -->
+              <path d="M 28 160 A 132 132 0 0 1 83 67" fill="none" stroke="#ef4444" stroke-width="24" stroke-linecap="round"/>
+              <path d="M 83 67 A 132 132 0 0 1 134 33" fill="none" stroke="#f59e0b" stroke-width="24" stroke-linecap="butt"/>
+              <path d="M 134 33 A 132 132 0 0 1 186 33" fill="none" stroke="#facc15" stroke-width="24" stroke-linecap="butt"/>
+              <path d="M 186 33 A 132 132 0 0 1 237 67" fill="none" stroke="#86efac" stroke-width="24" stroke-linecap="butt"/>
+              <path d="M 237 67 A 132 132 0 0 1 292 160" fill="none" stroke="#22c55e" stroke-width="24" stroke-linecap="round"/>
+
+              <!-- needle -->
+              <g transform="translate(160 160) rotate({needle_deg})">
+                <polygon points="0,-6 108,0 0,6" fill="#1e3a5f"></polygon>
+              </g>
+              <circle cx="160" cy="160" r="8" fill="#1e3a5f"></circle>
+            </svg>
+            <p style="margin:-8px 0 2px 0;font-size:2.6rem;font-weight:800;color:#1e3a5f;">{score}</p>
+            <p style="margin:0 0 8px 0;font-size:1.08rem;font-weight:700;color:{label_color};">{label}</p>
+          </div>
+        </div>
+        """,
         unsafe_allow_html=True,
     )
     st.caption("Score is derived from diversification, balance, concentration, and growth trend on sample data.")
