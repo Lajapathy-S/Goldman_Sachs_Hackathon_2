@@ -38,7 +38,7 @@ for k, v in [
     ("logged_in", False),
     ("show_member_login", False),
     ("goal_step", 0),
-    ("goal_main", ""),
+    ("goal_main", "retirement"),
     ("goal_years", 15),
     ("goal_comfort", "hold"),
     ("agent_messages", []),
@@ -54,12 +54,15 @@ FINANCIAL_RE = re.compile(
     r"risk|allocat|tax|scenario|what\s*if|drop|crash|yield|dividend|sip|etf|cash|retire|goal|"
     r"macro|interest|recess|volatil|loss|gain|percent|apy|return|asset|diversif|bear|bull|"
     r"correction|expense|capital\s*gain|savings|debt|pension|nominee|lumpsum|index|sector|"
-    r"gold|commod|rupee|inr)\b",
+    r"gold|commod|rupee|inr|budget|mortgage|401k|\bira\b|roth|forex|crypto|bitcoin|insurance|"
+    r"financial|broker|trade|trading|fee|401\b|emergency\s*fund|refinance|loan|credit\s*score|"
+    r"income|salary|net\s*worth)\b",
     re.I,
 )
 OFF_TOPIC_RE = re.compile(
     r"\b(recipe|cook|weather|joke|poem|python|javascript|code|debug|movie|game|sports|"
-    r"football|cricket)\b",
+    r"football|cricket|homework|essay|chatgpt|politics|election|religion|medical|diagnose|"
+    r"dating|porn|hack\s*into|malware)\b",
     re.I,
 )
 
@@ -296,14 +299,6 @@ def login_screen() -> None:
                 and comfort with risk, then summarizes trade-offs in plain language (educational only).
               </div>
             </details>
-            <span class="gs-plain">tools&amp;resources</span>
-            <details name="aichemist-landing-nav">
-              <summary>company ▾</summary>
-              <div class="gs-dd-body">
-                <strong>Overview</strong> — AIChemist is an educational workspace for exploring portfolio ideas,
-                AI-assisted what-ifs, and rebalance simulations — not a broker and not personalized investment advice.
-              </div>
-            </details>
             </div>
             """,
             unsafe_allow_html=True,
@@ -458,7 +453,7 @@ def page_portfolio(portfolio_focus: str) -> None:
                 + "** selection."
             )
             st.markdown(
-                '<p class="pf-footlink">See performance details — explore scenarios under tools&amp;resources →</p>',
+                '<p class="pf-footlink">See performance details — explore scenarios in <strong>AI Rebalance</strong> →</p>',
                 unsafe_allow_html=True,
             )
 
@@ -507,7 +502,7 @@ def page_portfolio(portfolio_focus: str) -> None:
                 "Bars show **unrealized** long-term vs short-term P/L on holdings (educational split only)."
             )
             st.markdown(
-                '<p class="pf-footlink">For practice moves, open <strong>tools&amp;resources</strong> → AI Rebalance</p>',
+                '<p class="pf-footlink">For practice moves, open <strong>AI Rebalance</strong> in the sidebar</p>',
                 unsafe_allow_html=True,
             )
 
@@ -558,7 +553,8 @@ def page_portfolio(portfolio_focus: str) -> None:
 
 def _guardrail_bullets() -> str:
     return (
-        "- I only answer **money and portfolio** questions in simple language.\n"
+        "- **RB buddy** only answers **finance and investing** questions (money, markets, goals, risk, taxes at a high level).\n"
+        "- I can’t help with coding, homework, sports, recipes, health, politics, or general chat.\n"
         "- Try a **what if** about markets, inflation, withdrawals, or saving for a goal.\n"
         "- Example: *What if the market drops by 20%?*"
     )
@@ -566,9 +562,9 @@ def _guardrail_bullets() -> str:
 
 def _greeting_bullets() -> str:
     return (
-        "- Ask any **what-if** about investing in plain words.\n"
-        "- Answers show as **bullet points** so they’re easy to scan.\n"
-        "- For a full practice rebalance, open **tools&resources** → AI Rebalance.\n"
+        "- I’m **RB buddy** — ask any **finance or investing** question in plain words.\n"
+        "- Replies are **bullet points** so they’re easy to scan.\n"
+        "- For a full practice rebalance, open **AI Rebalance** in the sidebar.\n"
         "- Switch to **Goal coach (chat)** for a short questionnaire + summary."
     )
 
@@ -635,11 +631,11 @@ def _inject_gs_messaging_css() -> None:
         .goal-composer {
             max-width: 760px;
             margin: 12px auto 0 auto;
-            padding: 14px 16px;
-            background: #ffffff;
+            padding: 12px 14px;
+            background: #f8fafc;
             border: 1px solid #a2b9d6;
             border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(26, 26, 26, 0.06);
+            box-shadow: 0 1px 8px rgba(26, 26, 26, 0.05);
         }
         .goal-coach-badge {
             display: inline-flex;
@@ -680,7 +676,7 @@ GOAL_COACH_WELCOME = (
     "I’ll ask **three short questions** about what you’re investing for, your **time horizon**, and how you’d react "
     "if markets got rough. Then I’ll give you a **plain-English summary** (bullet points).\n\n"
     "This is **educational only** — not personal financial advice.\n\n"
-    "When you’re ready, tap **Start conversation** below or type **begin** in the message box."
+    "When you’re ready, tap **Start conversation** below."
 )
 
 
@@ -688,7 +684,7 @@ def _goal_chat_guardrail() -> str:
     return (
         "- I stay in **money and goal** territory — investing, saving, risk, and time horizon.\n"
         "- I can’t help with general chit-chat, coding, recipes, or unrelated topics here.\n"
-        "- Try: *begin* to start the questionnaire, or open **What-if chat** for market “what if” questions.\n"
+        "- Tap **Start conversation** to begin the questionnaire, or open **RB buddy** for market “what if” questions.\n"
         "- Everything here is **educational**, not a recommendation to buy or sell anything."
     )
 
@@ -696,18 +692,9 @@ def _goal_chat_guardrail() -> str:
 def _goal_chat_finish_questionnaire_hint() -> str:
     return (
         "- I’m in the middle of your **goal questionnaire** — use the **options and buttons** just above to continue.\n"
-        "- After your summary, you can ask follow-ups here (still **money topics only**).\n"
-        "- For open-ended “what if” questions, **What-if chat** works great too."
+        "- After your summary, you can use the **follow-up** field (finance topics only).\n"
+        "- For open-ended “what if” questions, **RB buddy** works great too."
     )
-
-
-def _goal_step0_ack(text: str) -> bool:
-    t = text.lower().strip()
-    if t in ("begin", "start", "go", "ok", "yes", "y", "let's go", "lets go"):
-        return True
-    if re.match(r"^(hi|hello|hey)\b", t) and len(t) < 32:
-        return True
-    return False
 
 
 def _goal_begin_conversation() -> None:
@@ -746,7 +733,7 @@ def _goal_followup_reply(user_text: str) -> None:
                 "- You’ve finished the goal questionnaire — nice work.\n"
                 "- Ask a **what-if** about markets, inflation, or withdrawals in plain words.\n"
                 "- I’ll answer in **bullet points** so it’s easy to scan.\n"
-                "- Or switch to **What-if chat** for the same style without the goal recap.",
+                "- Or switch to **RB buddy** for the same style without the goal recap.",
             )
         )
         return
@@ -758,8 +745,11 @@ def _goal_followup_reply(user_text: str) -> None:
 
 def _append_whatif_response(user_text: str, prior_history: list[tuple[str, str]]) -> None:
     """Append assistant reply; prior_history = messages before this user turn (excludes current user)."""
+    t = user_text.strip()
+    if not t:
+        return
     if OFF_TOPIC_RE.search(user_text) or (
-        len(user_text.strip()) > 2 and not FINANCIAL_RE.search(user_text)
+        len(t) > 2 and not FINANCIAL_RE.search(user_text)
     ):
         st.session_state.agent_messages.append(("assistant", _guardrail_bullets()))
         st.session_state["_last_whatif_source"] = "guardrail"
@@ -788,10 +778,10 @@ def render_guided_goal_setting() -> None:
         st.session_state.goal_chat_messages = [("assistant", GOAL_COACH_WELCOME)]
 
     goal_labels = {
-        "retirement": "Long-term / retirement",
-        "home": "A large purchase",
-        "emergency": "Safety net / emergency",
-        "growth": "General long-term growth",
+        "retirement": "Retirement",
+        "education": "Education",
+        "home": "Home",
+        "emergency": "Emergency fund",
     }
     comfort_labels = {
         "sell": "Move mostly to safer options — sleep matters most.",
@@ -821,12 +811,15 @@ def render_guided_goal_setting() -> None:
             st.rerun()
 
     elif step == 1:
-        st.session_state.goal_main = st.radio(
-            "Your answer",
-            list(goal_labels.keys()),
+        keys = list(goal_labels.keys())
+        if st.session_state.goal_main not in keys:
+            st.session_state.goal_main = keys[0]
+        st.radio(
+            "What is this money mainly for?",
+            keys,
             format_func=lambda k: goal_labels[k],
             horizontal=False,
-            key="g_main",
+            key="goal_main",
             label_visibility="visible",
         )
         col1, col2 = st.columns(2)
@@ -886,6 +879,7 @@ def render_guided_goal_setting() -> None:
             risk = "Cautious" if c == "sell" else "Balanced" if c == "hold" else "Growth-minded"
             profile = {
                 "mainGoal": st.session_state.goal_main,
+                "mainGoalLabel": goal_labels[st.session_state.goal_main],
                 "years": st.session_state.goal_years,
                 "comfort": c,
                 "riskLabel": risk,
@@ -915,11 +909,22 @@ def render_guided_goal_setting() -> None:
             st.rerun()
 
     else:
-        st.success("Profile saved — scroll up to see the full chat, or ask a follow-up below.")
+        st.success("Profile saved — scroll up to see the full chat.")
         with st.expander("View saved profile (JSON)"):
             st.json(json.loads(st.session_state.goal_saved))
         src = st.session_state.get("goal_claude_source") or "fallback"
         st.caption(f"Summary source: **{'Claude API' if src == 'claude' else 'Built-in template'}**")
+        with st.form("goal_followup_form", clear_on_submit=True):
+            fu = st.text_input(
+                "Optional follow-up (finance topics only)",
+                placeholder="e.g. Should I tilt more conservative for a shorter horizon?",
+                key="goal_followup_text",
+            )
+            send_fu = st.form_submit_button("Send follow-up")
+            if send_fu and fu.strip():
+                st.session_state.goal_chat_messages.append(("user", fu.strip()))
+                _goal_followup_reply(fu.strip())
+                st.rerun()
         if st.button("Start over", key="g_reset"):
             st.session_state.goal_step = 0
             st.session_state.goal_claude_summary = None
@@ -930,64 +935,24 @@ def render_guided_goal_setting() -> None:
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    chat_placeholder = (
-        "Message Goal coach…"
-        if st.session_state.goal_step < 4
-        else "Follow up (money topics only)…"
-    )
-    if prompt := st.chat_input(chat_placeholder, key="goal_chat_input"):
-        p = prompt.strip()
-        if not p:
-            st.rerun()
-        st.session_state.goal_chat_messages.append(("user", p))
-        if st.session_state.goal_step == 0:
-            if _goal_step0_ack(p):
-                st.session_state.goal_claude_summary = None
-                st.session_state.goal_claude_source = None
-                st.session_state.goal_chat_messages.append(
-                    (
-                        "assistant",
-                        "**Question 1 of 3:** What is **this money mainly for**?\n\n"
-                        "Choose one option below, then tap **Next**.",
-                    )
-                )
-                st.session_state.goal_step = 1
-            else:
-                if OFF_TOPIC_RE.search(p) or (len(p) > 2 and not FINANCIAL_RE.search(p)):
-                    st.session_state.goal_chat_messages.append(("assistant", _goal_chat_guardrail()))
-                else:
-                    st.session_state.goal_chat_messages.append(
-                        (
-                            "assistant",
-                            "Thanks! When you’re ready to begin the questionnaire, type **begin** or tap **Start conversation**.",
-                        )
-                    )
-        elif st.session_state.goal_step < 4:
-            if OFF_TOPIC_RE.search(p) or (len(p) > 2 and not FINANCIAL_RE.search(p)):
-                st.session_state.goal_chat_messages.append(("assistant", _goal_chat_guardrail()))
-            else:
-                st.session_state.goal_chat_messages.append(
-                    ("assistant", _goal_chat_finish_questionnaire_hint())
-                )
-        else:
-            _goal_followup_reply(p)
-        st.rerun()
-
 
 def page_agent() -> None:
     _inject_gs_messaging_css()
-    st.header("Guided goal setting")
+    st.header("agents")
     st.caption(
-        "Under **agents** — what-if chat plus a structured goal coach. Uses **Claude API** when "
+        "**RB buddy** (finance-only chat) plus **Goal coach** for a structured questionnaire. Uses **Claude API** when "
         "`ANTHROPIC_API_KEY` is set in Streamlit secrets; otherwise you get clear bullet templates."
     )
     sync_anthropic_env_from_secrets()
 
-    tab_chat, tab_goals = st.tabs(["What-if chat", "Goal coach (chat)"])
+    tab_chat, tab_goals = st.tabs(["RB buddy", "Goal coach (chat)"])
 
     with tab_chat:
-        st.subheader("What-if chat")
-        st.write("Ask portfolio **what-if** questions. Replies are **bullet points** for quick reading.")
+        st.subheader("RB buddy")
+        st.write(
+            "Chat about **money and investing** only. Replies are **bullet points**. "
+            "Off-topic questions get a short reminder — RB buddy won’t answer non-finance topics."
+        )
 
         presets = [
             "What if the market drops by 20%?",
@@ -1017,7 +982,7 @@ def page_agent() -> None:
                 f"Last AI reply: **{'Claude API' if src == 'claude' else 'Built-in template (add API key for Claude)'}**"
             )
 
-        if prompt := st.chat_input("Ask a what-if question…"):
+        if prompt := st.chat_input("Ask RB buddy a finance question…"):
             prior = [
                 (r, c)
                 for r, c in st.session_state.agent_messages
@@ -1038,7 +1003,7 @@ def page_agent() -> None:
 
 def page_rebalance() -> None:
     st.header("AI Rebalance (simulation)")
-    st.caption("Under **tools&resources** — practice scenarios on the demo portfolio.")
+    st.caption("Practice scenarios on the demo portfolio — open from the sidebar.")
     st.warning("**Educational simulation — not financial advice.** No real trades.")
 
     if "rebalance_df" not in st.session_state:
@@ -1169,23 +1134,6 @@ def page_rebalance() -> None:
         st.error("This is an educational simulation, not financial advice.")
 
 
-def page_company() -> None:
-    st.header("Company")
-    st.markdown(
-        """
-        **AIChemist** is an educational workspace for exploring how portfolio metrics, guardrailed AI
-        chat, and rebalance simulations can fit together — built for learning and demos, not live trading.
-
-        We focus on clarity: stocks and mutual funds in a transparent demo book, plain-language coaching,
-        and simulations that spell out limits. **We are not a broker, fund sponsor, or registered
-        investment advisor.** Nothing here is personalized advice or an offer to buy or sell securities.
-
-        *This hackathon build is for coursework and presentation; treat all figures and narratives as illustrative.*
-        """
-    )
-    st.caption("Educational context only — not an offer or solicitation.")
-
-
 def main() -> None:
     if not st.session_state.logged_in:
         login_screen()
@@ -1195,7 +1143,7 @@ def main() -> None:
         st.markdown("### Workspace")
         nav_main = st.radio(
             "Navigate",
-            ["portfolio", "agents", "tools&resources", "company"],
+            ["portfolio", "agents", "AI Rebalance"],
             label_visibility="collapsed",
         )
         portfolio_focus = "stocks"
@@ -1209,12 +1157,12 @@ def main() -> None:
             )
         elif nav_main == "agents":
             st.markdown(
-                "<small><strong>Guided goal setting</strong> — Chat-style questionnaire and summary; "
-                "financial guardrails, not personalized advice.</small>",
+                "<small><strong>RB buddy</strong> — Finance-only what-if chat. "
+                "<strong>Goal coach</strong> — questionnaire + summary. Educational only.</small>",
                 unsafe_allow_html=True,
             )
-        elif nav_main == "tools&resources":
-            st.caption("AI Rebalance — what-if scenarios on the demo portfolio (practice only).")
+        elif nav_main == "AI Rebalance":
+            st.caption("What-if scenarios on the demo portfolio (practice only).")
 
         st.divider()
         if st.button("Log out"):
@@ -1230,10 +1178,8 @@ def main() -> None:
         page_portfolio(portfolio_focus)
     elif nav_main == "agents":
         page_agent()
-    elif nav_main == "tools&resources":
-        page_rebalance()
     else:
-        page_company()
+        page_rebalance()
 
 
 if __name__ == "__main__":
