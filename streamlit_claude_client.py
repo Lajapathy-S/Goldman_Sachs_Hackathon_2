@@ -79,7 +79,7 @@ Scope (strict):
 - Never pretend to be a licensed advisor; this is educational, not personal advice.
 
 Format:
-- Answer ONLY with bullet points. Start every bullet with "- " (markdown list). Use 4–8 bullets when you do answer.
+- Answer ONLY with bullet points. Start every bullet with "- " (markdown list). Use 7–11 bullets when you do answer.
 - Cover the "what if" clearly, in plain language. No guarantees, no promised returns.
 - Do NOT use: alpha, beta, Sharpe ratio, standard deviation (unless you define it in one short phrase—prefer omitting).
 - Do not name real companies or tickers; say "diversified mutual funds" or "sample stocks" if needed.
@@ -96,7 +96,15 @@ Format:
   - Costs
   - Tax implications
   - Long-term goal alignment
-  - Simple logic"""
+  - Simple logic
+- Business-grade interaction requirement:
+  - Give the core answer first.
+  - Then always end with exactly **3 follow-up questions** a planner/analyst would ask before finalizing advice.
+  - The 3 questions must be **specific to the user's prompt** (scenario-aware), not a fixed generic set.
+  - Label them clearly as:
+    - **Question 1:** ...
+    - **Question 2:** ...
+    - **Question 3:** ..."""
 
 
 GOAL_COACH_SYSTEM = """You are a financial coach for beginners. The user completed a short goal questionnaire.
@@ -151,10 +159,43 @@ def goal_coach_reply(api_key: str | None, profile: dict[str, Any]) -> tuple[str,
 
 def _fallback_whatif_bullets(user_text: str) -> str:
     t = user_text.lower()
+
+    def _follow_up_questions() -> str:
+        # Scenario-aware prompts so follow-up questions are tailored, not static.
+        if "withdraw" in t or "cash" in t or "need" in t:
+            return (
+                "- **Question 1:** What is the exact withdrawal date, and can it be split into tranches instead of one-time selling?\n"
+                "- **Question 2:** Which account will you sell from first (taxable vs tax-advantaged), and do you know the unrealized gains there?\n"
+                "- **Question 3:** After withdrawing this amount, what minimum emergency-cash buffer do you want to keep?"
+            )
+        if "inflation" in t:
+            return (
+                "- **Question 1:** Over what horizon (3, 5, 10+ years) are you trying to protect purchasing power?\n"
+                "- **Question 2:** What proportion is currently in cash/fixed-income versus equities/funds?\n"
+                "- **Question 3:** Are there near-term expenses that require stability before we increase growth exposure?"
+            )
+        if "20" in t and ("market" in t or "drop" in t or "crash" in t):
+            return (
+                "- **Question 1:** If markets drop another 10-15%, would you add, hold, or reduce risk further?\n"
+                "- **Question 2:** Which holdings are most concentrated and causing the largest drawdown in your portfolio?\n"
+                "- **Question 3:** Do you have planned cash inflows (salary/bonuses) that can fund rebalancing without forced selling?"
+            )
+        if any(w in t for w in ("buy", "sell", "trading", "trade", "stock", "stocks", "share", "fund", "portfolio")):
+            return (
+                "- **Question 1:** What is the objective of this move: reduce risk, raise cash, or improve long-term return potential?\n"
+                "- **Question 2:** What is your maximum acceptable short-term drawdown after this change?\n"
+                "- **Question 3:** Are there tax lots, fees, or lock-ins we should prioritize before deciding what to buy/sell first?"
+            )
+        return (
+            "- **Question 1:** What is your target goal date and how flexible is it?\n"
+            "- **Question 2:** What is your current allocation across stocks, funds, and cash today?\n"
+            "- **Question 3:** What constraints matter most right now: taxes, liquidity, or limiting drawdown?"
+        )
+
     if any(w in t for w in ("buy", "sell", "trading", "trade")) and any(
         w in t for w in ("stock", "stocks", "share", "fund", "portfolio", "market", "invest")
     ):
-        return (
+        core = (
             "- **Buying vs selling** is personal: it depends on your **goal date**, **risk comfort**, and whether this "
             "money is **long-term** or needed soon.\n"
             "- Many beginners reduce regret by using **diversified mutual funds** instead of one-off bets on single names.\n"
@@ -165,8 +206,9 @@ def _fallback_whatif_bullets(user_text: str) -> str:
             "that timeline.\n"
             "- This is not a recommendation to buy or sell any specific security."
         )
+        return core + "\n" + _follow_up_questions()
     if "20" in t and ("market" in t or "drop" in t or "crash" in t):
-        return (
+        core = (
             "- A large market drop can feel scary; a common adjustment is trimming the riskiest slice and adding to **diversified mutual funds** in small steps.\n"
             "- **Costs:** switching can involve brokerage, spreads, or fund expense ratios, so frequent churn can hurt returns.\n"
             "- **Tax implications:** selling appreciated holdings may realize capital gains; check local rules before executing.\n"
@@ -174,8 +216,9 @@ def _fallback_whatif_bullets(user_text: str) -> str:
             "- **Simple logic:** keep near-term money stable, and let long-term money stay diversified instead of reacting in one big move.\n"
             "- Use **REBA** under **Agents** to talk through scenario trade-offs."
         )
+        return core + "\n" + _follow_up_questions()
     if "inflation" in t:
-        return (
+        core = (
             "- High inflation can erode idle **cash**, so many people keep long-horizon money partly in diversified growth assets.\n"
             "- **Costs:** changing funds may involve exit loads, transaction charges, or higher expense ratios.\n"
             "- **Tax implications:** reallocating in taxable accounts can trigger gains/losses; treatment differs by region and asset type.\n"
@@ -183,8 +226,9 @@ def _fallback_whatif_bullets(user_text: str) -> str:
             "- **Simple logic:** protect soon-needed money with steadier options, and keep distant-goal money diversified for growth potential.\n"
             "- Not personal advice."
         )
+        return core + "\n" + _follow_up_questions()
     if "withdraw" in t or "cash" in t:
-        return (
+        core = (
             "- If you need a **large withdrawal soon**, many investors first park that slice in liquid / low-volatility options.\n"
             "- **Costs:** check redemption fees, spread impact, and any penalties for early exits.\n"
             "- **Tax implications:** sales in taxable accounts can create reportable gains/losses; sequence of selling matters.\n"
@@ -192,7 +236,8 @@ def _fallback_whatif_bullets(user_text: str) -> str:
             "- **Simple logic:** secure near-term cash needs first, then keep the rest invested to match your timeline.\n"
             "- Not financial advice—just a transparent educational framework."
         )
-    return (
+        return core + "\n" + _follow_up_questions()
+    core = (
         "- Start with two anchors: **timeline** (when money is needed) and **risk comfort** (how much drawdown you can handle).\n"
         "- **Costs:** any adjustment can involve fees, spreads, or fund expenses, so avoid over-trading.\n"
         "- **Tax implications:** selling can realize gains/losses; check local tax treatment before changing allocations.\n"
@@ -200,6 +245,7 @@ def _fallback_whatif_bullets(user_text: str) -> str:
         "- **Simple logic:** keep short-term money stable and long-term money diversified, then rebalance in small steps.\n"
         "- Not a recommendation to buy or sell anything."
     )
+    return core + "\n" + _follow_up_questions()
 
 
 def _fallback_goal_bullets(profile: dict[str, Any]) -> str:
