@@ -122,24 +122,35 @@ def render_health_score_card(health: dict) -> None:
 
     gauge_html = f"""
     <div style="display:flex;justify-content:center;align-items:center;width:100%;padding-top:6px;">
-      <div style="width:min(520px,96%);text-align:center;">
-        <svg viewBox="0 0 320 200" width="100%" height="200" aria-hidden="true">
-          <path d="M 28 160 A 132 132 0 0 1 83 67" fill="none" stroke="#ef4444" stroke-width="24" stroke-linecap="round"/>
-          <path d="M 83 67 A 132 132 0 0 1 134 33" fill="none" stroke="#f59e0b" stroke-width="24" stroke-linecap="butt"/>
-          <path d="M 134 33 A 132 132 0 0 1 186 33" fill="none" stroke="#facc15" stroke-width="24" stroke-linecap="butt"/>
-          <path d="M 186 33 A 132 132 0 0 1 237 67" fill="none" stroke="#86efac" stroke-width="24" stroke-linecap="butt"/>
-          <path d="M 237 67 A 132 132 0 0 1 292 160" fill="none" stroke="#22c55e" stroke-width="24" stroke-linecap="round"/>
-          <g transform="translate(160 160) rotate({needle_deg})">
-            <polygon points="0,-5 108,0 0,5" fill="#1e3a5f"></polygon>
+      <div style="width:min(620px,98%);text-align:center;">
+        <svg viewBox="0 0 360 250" width="100%" height="250" aria-hidden="true">
+          <!-- outer semicircle bands -->
+          <path d="M 40 180 A 140 140 0 0 1 100 78" fill="none" stroke="#e35d5b" stroke-width="22" stroke-linecap="round"/>
+          <path d="M 100 78 A 140 140 0 0 1 145 50" fill="none" stroke="#dfa443" stroke-width="22" stroke-linecap="butt"/>
+          <path d="M 145 50 A 140 140 0 0 1 195 50" fill="none" stroke="#efd45a" stroke-width="22" stroke-linecap="butt"/>
+          <path d="M 195 50 A 140 140 0 0 1 250 78" fill="none" stroke="#a8efba" stroke-width="22" stroke-linecap="butt"/>
+          <path d="M 250 78 A 140 140 0 0 1 320 180" fill="none" stroke="#6bcf70" stroke-width="22" stroke-linecap="round"/>
+
+          <!-- dotted inner guide -->
+          <path d="M 52 180 A 128 128 0 0 1 308 180"
+                fill="none"
+                stroke="#d8dee8"
+                stroke-width="4"
+                stroke-linecap="round"
+                stroke-dasharray="2 10" />
+
+          <!-- needle -->
+          <g transform="translate(180 180) rotate({needle_deg})">
+            <polygon points="-4,-8 102,0 -4,8 12,0" fill="#1e3a5f"></polygon>
           </g>
-          <circle cx="160" cy="160" r="8" fill="#1e3a5f"></circle>
+          <circle cx="180" cy="180" r="8" fill="#1e3a5f"></circle>
         </svg>
-        <p style="margin:-14px 0 2px 0;font-size:2.6rem;font-weight:800;color:#1e3a5f;">{score}</p>
-        <p style="margin:0 0 8px 0;font-size:1.08rem;font-weight:700;color:{label_color};">{label}</p>
+        <p style="margin:-32px 0 2px 0;font-size:2.25rem;font-weight:700;color:{label_color};">{label}</p>
+        <p style="margin:0 0 8px 0;font-size:3.05rem;font-weight:800;color:#1e3a5f;line-height:1;">{score}</p>
       </div>
     </div>
     """
-    components.html(gauge_html, height=260, scrolling=False)
+    components.html(gauge_html, height=330, scrolling=False)
     st.caption("Score is derived from diversification, balance, concentration, and growth trend on sample data.")
 
 
